@@ -193,34 +193,51 @@ JSON:"""
     
     def _build_system_prompt(self, patient_data: Dict[str, Any], phase: str) -> str:
         """Build system prompt based on conversation phase"""
-        base_prompt = """You are CardioGenie, a rule-based AI assistant for cardiology consultations.
+        name = patient_data.get('name', '')
+        
+        base_prompt = """You are CardioGenie, a friendly AI cardiology assistant. You have a warm, professional, and empathetic personality.
 
-STRICT RULES:
-- Follow ONLY the structured conversation flow: Basic Info → Symptoms → Follow-up Questions
-- Ask ONE question at a time
-- Keep responses under 20 words
+CONVERSATION RULES:
+- Be conversational and natural, like a real healthcare assistant
+- Use the patient's name when you know it to personalize responses
+- Explain WHY you need information (for appointments, care recommendations, etc.)
+- Keep responses warm but concise (under 30 words)
+- NEVER mention "tasks", "phases", or internal processes
+- Act like a real person, not a robot
+
+MEDICAL RULES:
 - NO medical diagnoses or medical advice
-- Use ONLY database rules, NOT your medical knowledge
+- Collect information systematically: Basic Info → Symptoms → Follow-up Questions
+- Ask ONE question at a time"""
 
-Current phase: {phase}
-Patient data: Name: {name}, Email: {email}, Age: {age}, Gender: {gender}
+        if phase == "basic_info":
+            missing = []
+            if not patient_data.get('name'): missing.append("name")
+            if not patient_data.get('email'): missing.append("email") 
+            if not patient_data.get('age'): missing.append("age")
+            if not patient_data.get('gender'): missing.append("gender")
+            
+            if "name" in missing:
+                context = "You need to get the patient's name first. Be welcoming and friendly."
+            elif "email" in missing:
+                context = f"You know the patient's name is {name}. You need their email for appointment details. Be personal and explain why."
+            elif "age" in missing:
+                context = f"You know {name}'s name and email. You need their age for personalized care. Explain the purpose."
+            elif "gender" in missing:
+                context = f"You know {name}'s basic info except gender. You need this for health profiling. Almost done with basics."
+            else:
+                context = f"You have all basic info for {name}. Now transition naturally to asking about their symptoms/concerns."
+                
+        elif phase == "symptoms":
+            context = f"You have {name}'s basic information. Now ask about their cardiovascular symptoms naturally and conversationally."
+            
+        elif phase == "follow_up":
+            context = f"You're helping {name} with their symptoms. Ask for more details about their condition naturally."
+            
+        else:
+            context = "Be welcoming and start collecting basic patient information."
 
-Your ONLY job is to collect information systematically."""
-
-        phase_instructions = {
-            "basic_info": "Ask for ONE missing piece: name, email, age, or gender. Nothing else.",
-            "symptoms": "Ask ONLY: 'What cardiovascular symptoms are you experiencing?'",
-            "follow_up": "NEVER used - follow-up questions come from database rules only.",
-            "completed": "Say: 'Thank you. The cardiologist will be notified.'"
-        }
-
-        return base_prompt.format(
-            phase=phase,
-            name=patient_data.get('name', 'Not provided'),
-            email=patient_data.get('email', 'Not provided'),
-            age=patient_data.get('age', 'Not provided'),
-            gender=patient_data.get('gender', 'Not provided')
-        ) + f"\n\nCurrent task: {phase_instructions.get(phase, 'Assist the patient.')}"
+        return base_prompt + f"\n\nCONTEXT: {context}"
     
     def _get_fallback_response(self, phase: str, patient_data: Dict[str, Any]) -> str:
         """Rule-based responses following the document requirements"""
