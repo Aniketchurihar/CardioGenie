@@ -233,27 +233,53 @@ Your ONLY job is to collect information systematically."""
             if not patient_data.get('age'): missing.append("age")
             if not patient_data.get('gender'): missing.append("gender")
             
+            name = patient_data.get('name', '')
+            
             if len(missing) == 4:  # First interaction
-                return "Hello! I'm CardioGenie, your AI cardiology assistant. Could you please tell me your name?"
+                return "Hello! I'm CardioGenie, your AI cardiology assistant. I'm here to help you with your heart health concerns. To get started, could you please share your name and a bit about yourself?"
             elif "name" in missing:
-                return "Could you please tell me your name?"
+                return "I'd love to help you today! Could you please tell me your name so I can assist you better?"
             elif "email" in missing:
-                return "What's your email address?"
+                if name:
+                    return f"Nice to meet you, {name}! I'll need to send you some information and appointment details. Could you share your email address with me?"
+                else:
+                    return "I'll need to send you some important information. Could you please share your email address?"
             elif "age" in missing:
-                return "How old are you?"
+                if name:
+                    return f"Thanks, {name}! To provide you with the most appropriate care recommendations, could you tell me your age?"
+                else:
+                    return "To provide you with personalized care, could you tell me your age?"
             elif "gender" in missing:
-                return "What's your gender?"
+                if name:
+                    return f"Almost done with the basics, {name}! Could you let me know your gender? This helps me understand your health profile better."
+                else:
+                    return "Could you let me know your gender? This helps me provide more personalized health guidance."
             else:
-                return "Thank you! Now, what cardiovascular symptoms are you experiencing?"
+                if name:
+                    return f"Perfect, {name}! Now I'd like to understand what's bringing you here today. What cardiovascular symptoms or concerns are you experiencing?"
+                else:
+                    return "Great! Now, what cardiovascular symptoms or heart-related concerns are you experiencing today?"
         
         elif phase == "symptoms":
-            return "What cardiovascular symptoms are you experiencing? Please describe symptoms like chest pain, shortness of breath, palpitations, or fatigue."
+            name = patient_data.get('name', '')
+            if name:
+                return f"I'm here to help you, {name}. Could you describe what symptoms or concerns brought you here today? For example, are you experiencing chest pain, shortness of breath, heart palpitations, or any other heart-related issues?"
+            else:
+                return "I'm here to help with your heart health concerns. Could you describe what symptoms you're experiencing? This could be chest pain, shortness of breath, palpitations, or any other cardiovascular symptoms."
         
         elif phase == "follow_up":
-            return "Could you provide more details about your symptoms?"
+            name = patient_data.get('name', '')
+            if name:
+                return f"Thanks for sharing that, {name}. Could you tell me a bit more about these symptoms? Any additional details would be helpful."
+            else:
+                return "Thank you for sharing that information. Could you provide some more details about your symptoms?"
         
         elif phase == "completed":
-            return "Thank you for providing all the information. I'm now notifying the cardiologist and scheduling your appointment. You'll receive a calendar invite shortly!"
+            name = patient_data.get('name', '')
+            if name:
+                return f"Thank you so much, {name}! I have all the information I need. I'm now connecting you with our cardiology team - they'll be notified about your case and you'll receive an appointment confirmation shortly. Take care!"
+            else:
+                return "Perfect! I have all the information needed. Our cardiology team will be notified about your case and you'll receive an appointment confirmation shortly. Thank you for using CardioGenie!"
         
         else:
-            return "Hello! I'm CardioGenie, your AI cardiology assistant. Could you please tell me your name to get started?" 
+            return "Hello! I'm CardioGenie, your AI cardiology assistant. I'm here to help you with any heart health concerns. Could you please tell me your name so we can get started?" 
