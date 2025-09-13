@@ -101,6 +101,10 @@ celerybeat.pid
 *.key
 *.crt
 
+# OAuth credentials (sensitive data)
+google_credentials.json
+oauth_credentials.json
+
 # Local data
 data/
 uploads/ 

@@ -22,6 +22,7 @@ except ImportError:
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from backend.config import Config
+from database.models import DatabaseManager
 
 class NotificationService:
     """Professional notification service for medical consultations"""
@@ -29,7 +30,69 @@ class NotificationService:
     def __init__(self, config):
         self.config = config
         self.calendar_service = None
+        self.db_manager = DatabaseManager(config.DATABASE_PATH)  # Database storage
         self._setup_google_calendar()
+    
+    def _save_credentials(self, credentials):
+        """Save Google OAuth credentials to database for persistence"""
+        try:
+            creds_data = {
+                'token': credentials.token,
+                'refresh_token': credentials.refresh_token,
+                'token_uri': credentials.token_uri,
+                'client_id': credentials.client_id,
+                'client_secret': credentials.client_secret,
+                'scopes': credentials.scopes,
+                'expires_at': credentials.expiry.isoformat() if credentials.expiry else None
+            }
+            
+            success = self.db_manager.save_oauth_credentials('google_calendar', creds_data)
+            if success:
+                print("✅ Google credentials saved to database")
+            return success
+            
+        except Exception as e:
+            print(f"❌ Failed to save credentials: {e}")
+            return False
+    
+    def _load_credentials(self):
+        """Load Google OAuth credentials from database"""
+        try:
+            creds_data = self.db_manager.load_oauth_credentials('google_calendar')
+            
+            if not creds_data:
+                print("📁 No Google credentials found in database")
+                return None
+            
+            # Parse expiry date if available
+            expiry = None
+            if creds_data.get('expires_at'):
+                from datetime import datetime
+                expiry = datetime.fromisoformat(creds_data['expires_at'])
+            
+            credentials = Credentials(
+                token=creds_data.get('token'),
+                refresh_token=creds_data.get('refresh_token'),
+                token_uri=creds_data.get('token_uri'),
+                client_id=creds_data.get('client_id'),
+                client_secret=creds_data.get('client_secret'),
+                scopes=creds_data.get('scopes'),
+                expiry=expiry
+            )
+            
+            # Check if credentials are expired and refresh if needed
+            if credentials.expired and credentials.refresh_token:
+                print("🔄 Refreshing expired Google credentials...")
+                credentials.refresh(Request())
+                self._save_credentials(credentials)  # Save refreshed credentials
+                print("✅ Google credentials refreshed successfully")
+            
+            print("✅ Google credentials loaded from database")
+            return credentials
+            
+        except Exception as e:
+            print(f"❌ Failed to load credentials: {e}")
+            return None
     
     async def send_consultation_summary(self, patient_data: Dict[str, Any], 
                                       symptoms: List[str], responses: Dict[str, Any]) -> bool:
@@ -80,21 +143,28 @@ class NotificationService:
         return summary
     
     def _setup_google_calendar(self):
-        """Setup Google Calendar service with in-memory OAuth handling"""
+        """Setup Google Calendar service with persistent token storage"""
         if not GOOGLE_AVAILABLE:
             print("Google Calendar API not available - using mock implementation")
             return
             
         try:
-            # For production, we'll use a simplified token storage approach
-            # This avoids external files and makes deployment easier
-            self.calendar_service = None
-            self.oauth_flow = None
+            # Try to load existing credentials first
+            credentials = self._load_credentials()
+            
+            if credentials and credentials.valid:
+                # Use existing valid credentials
+                self.calendar_service = build('calendar', 'v3', credentials=credentials)
+                print("✅ Google Calendar service initialized with saved credentials")
+            else:
+                # No valid credentials - will need OAuth flow
+                self.calendar_service = None
+                print("🔑 No valid credentials found - OAuth authentication required")
             
             # Initialize OAuth flow for when needed
             if hasattr(self.config, 'GOOGLE_CLIENT_ID') and self.config.GOOGLE_CLIENT_ID:
                 self._init_oauth_flow()
-                print("Google Calendar OAuth ready - will authenticate on first use")
+                print("Google Calendar OAuth ready")
             else:
                 print("Google Calendar credentials not configured - using mock implementation")
             
@@ -145,7 +215,7 @@ class NotificationService:
             return None
     
     def handle_oauth_callback(self, authorization_code):
-        """Handle OAuth callback and initialize calendar service"""
+        """Handle OAuth callback and initialize calendar service with persistent storage"""
         if not self.oauth_flow:
             return False
             
@@ -154,13 +224,17 @@ class NotificationService:
             self.oauth_flow.fetch_token(code=authorization_code)
             credentials = self.oauth_flow.credentials
             
+            # Save credentials persistently
+            if self._save_credentials(credentials):
+                print("✅ Google credentials saved for future use")
+            
             # Build calendar service
             self.calendar_service = build('calendar', 'v3', credentials=credentials)
-            print("Google Calendar service authenticated successfully")
+            print("✅ Google Calendar service authenticated successfully")
             return True
             
         except Exception as e:
-            print(f"OAuth callback handling failed: {e}")
+            print(f"❌ OAuth callback handling failed: {e}")
             return False
     
     async def _create_google_calendar_event(self, patient_data: Dict[str, Any], appointment_time: datetime) -> bool:

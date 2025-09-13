@@ -39,6 +39,23 @@ class DatabaseManager:
             )
         ''')
         
+        # Create credentials table for persistent OAuth storage
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS oauth_credentials (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                service TEXT UNIQUE NOT NULL,
+                token TEXT,
+                refresh_token TEXT,
+                token_uri TEXT,
+                client_id TEXT,
+                client_secret TEXT,
+                scopes TEXT,
+                expires_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
         # Create patients table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS patients (
@@ -226,4 +243,84 @@ class DatabaseManager:
         stats['completed_consultations'] = cursor.fetchone()[0]
         
         conn.close()
-        return stats 
+        return stats
+    
+    def save_oauth_credentials(self, service: str, credentials_data: Dict[str, Any]) -> bool:
+        """Save OAuth credentials to database"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            # Convert scopes list to JSON string
+            scopes_json = json.dumps(credentials_data.get('scopes', []))
+            
+            cursor.execute('''
+                INSERT OR REPLACE INTO oauth_credentials 
+                (service, token, refresh_token, token_uri, client_id, client_secret, scopes, expires_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (
+                service,
+                credentials_data.get('token'),
+                credentials_data.get('refresh_token'),
+                credentials_data.get('token_uri'),
+                credentials_data.get('client_id'),
+                credentials_data.get('client_secret'),
+                scopes_json,
+                credentials_data.get('expires_at')
+            ))
+            
+            conn.commit()
+            conn.close()
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to save OAuth credentials: {e}")
+            return False
+    
+    def load_oauth_credentials(self, service: str) -> Dict[str, Any]:
+        """Load OAuth credentials from database"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT token, refresh_token, token_uri, client_id, client_secret, scopes, expires_at
+                FROM oauth_credentials 
+                WHERE service = ?
+            ''', (service,))
+            
+            result = cursor.fetchone()
+            conn.close()
+            
+            if result:
+                return {
+                    'token': result[0],
+                    'refresh_token': result[1],
+                    'token_uri': result[2],
+                    'client_id': result[3],
+                    'client_secret': result[4],
+                    'scopes': json.loads(result[5]) if result[5] else [],
+                    'expires_at': result[6]
+                }
+            else:
+                return {}
+                
+        except Exception as e:
+            print(f"❌ Failed to load OAuth credentials: {e}")
+            return {}
+    
+    def delete_oauth_credentials(self, service: str) -> bool:
+        """Delete OAuth credentials from database"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute('DELETE FROM oauth_credentials WHERE service = ?', (service,))
+            
+            conn.commit()
+            conn.close()
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to delete OAuth credentials: {e}")
+            return False 
