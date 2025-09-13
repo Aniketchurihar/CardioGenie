@@ -30,7 +30,9 @@ class AIService:
             except Exception as e:
                 raise RuntimeError(f"Groq initialization failed: {e}")
         else:
-            raise ValueError("GROQ_API_KEY is required")
+            # For Railway deployment - allow startup without API key, will fail gracefully on first use
+            print("WARNING: GROQ_API_KEY not found - AI features will be disabled")
+            self.groq_client = None
     
     async def generate_welcome_message(self) -> str:
         """Generate empathetic welcome message"""
@@ -39,6 +41,8 @@ class AIService:
     
     async def extract_patient_information(self, message: str, current_data: Dict[str, Any]) -> Dict[str, Any]:
         """Extract patient information using AI"""
+        if not self.groq_client:
+            return {}  # Return empty dict if AI is not available
         try:
             prompt = f"""Extract patient information from: "{message}"
 
@@ -71,6 +75,8 @@ Return only JSON:"""
     
     async def generate_response(self, patient_data: Dict[str, Any], user_message: str, phase: str) -> str:
         """Generate contextual AI response"""
+        if not self.groq_client:
+            return "I'm sorry, AI services are currently unavailable. Please check your configuration."
         try:
             system_prompt = self._build_system_prompt(patient_data, phase)
             
