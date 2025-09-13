@@ -21,10 +21,16 @@ class AIService:
     
     def _initialize_clients(self):
         """Initialize AI clients"""
+        # Debug: Check if environment variables are being read
+        import os
+        print(f"DEBUG: GROQ_API_KEY exists in env: {'GROQ_API_KEY' in os.environ}")
+        print(f"DEBUG: GROQ_API_KEY value length: {len(self.config.GROQ_API_KEY) if self.config.GROQ_API_KEY else 0}")
+        
         if self.config.GROQ_API_KEY:
             try:
                 import groq
                 self.groq_client = groq.Groq(api_key=self.config.GROQ_API_KEY)
+                print("SUCCESS: Groq client initialized successfully")
             except ImportError:
                 raise ImportError("Groq library not installed. Install with: pip install groq")
             except Exception as e:
