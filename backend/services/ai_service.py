@@ -65,38 +65,54 @@ class AIService:
         return "Hi! I'm CardioGenie, your AI assistant for cardiology consultations. To provide you with the best care, could you please share your name, age, and gender?"
     
     async def extract_patient_information(self, message: str, current_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract patient information using AI"""
-        if not self.groq_client:
-            return {}  # Return empty dict if AI is not available
-        try:
-            prompt = f"""Extract patient information from: "{message}"
-
-Current data:
-- Name: {current_data.get('name', 'MISSING')}
-- Email: {current_data.get('email', 'MISSING')}
-- Age: {current_data.get('age', 'MISSING')}
-- Gender: {current_data.get('gender', 'MISSING')}
-
-Extract ONLY missing information. Return JSON format:
-{{"name": "extracted_name", "email": "extracted_email", "age": 25, "gender": "Male"}}
-
-For gender, use "Male" or "Female". For age, use integer only.
-If nothing can be extracted, return {{}}.
-
-Return only JSON:"""
-
-            response = self.groq_client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=100,
-                temperature=0.1
-            )
-            
-            result_text = response.choices[0].message.content.strip()
-            return json.loads(result_text)
-            
-        except Exception:
-            return {}
+        """Extract patient information using simple pattern matching"""
+        import re
+        
+        extracted = {}
+        message_lower = message.lower()
+        
+        # Extract name (if missing)
+        if not current_data.get('name'):
+            # Look for "my name is", "I'm", or just assume first words are name
+            name_patterns = [
+                r"(?:my name is|i'm|i am)\s+([a-zA-Z\s]+?)(?:\s*,|\s*age|\s*\d|\s*male|\s*female|$)",
+                r"^([a-zA-Z\s]+?)(?:\s*,|\s*age|\s*\d|\s*male|\s*female)",
+            ]
+            for pattern in name_patterns:
+                match = re.search(pattern, message, re.IGNORECASE)
+                if match:
+                    extracted['name'] = match.group(1).strip().title()
+                    break
+        
+        # Extract email (if missing)
+        if not current_data.get('email'):
+            email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', message)
+            if email_match:
+                extracted['email'] = email_match.group(0).lower()
+        
+        # Extract age (if missing)
+        if not current_data.get('age'):
+            age_patterns = [
+                r'(?:age|old)\s*(?:is)?\s*(\d{1,3})',
+                r'(\d{1,3})\s*(?:years?\s*old|yrs?)',
+                r'\b(\d{1,3})\s*(?:years?|yrs?)\b'
+            ]
+            for pattern in age_patterns:
+                match = re.search(pattern, message_lower)
+                if match:
+                    age = int(match.group(1))
+                    if 1 <= age <= 120:  # Reasonable age range
+                        extracted['age'] = age
+                        break
+        
+        # Extract gender (if missing)
+        if not current_data.get('gender'):
+            if any(word in message_lower for word in ['male', 'man', 'boy', 'gentleman']):
+                extracted['gender'] = 'Male'
+            elif any(word in message_lower for word in ['female', 'woman', 'girl', 'lady']):
+                extracted['gender'] = 'Female'
+        
+        return extracted
     
     async def generate_response(self, patient_data: Dict[str, Any], user_message: str, phase: str) -> str:
         """Generate contextual AI response"""
@@ -192,17 +208,17 @@ Your ONLY job is to collect information systematically."""
             if not patient_data.get('gender'): missing.append("gender")
             
             if len(missing) == 4:  # First interaction
-                return "Hello! I'm CardioGenie, your AI cardiology assistant. To help you better, could you please tell me your name?"
+                return "Hello! I'm CardioGenie, your AI cardiology assistant. Could you please tell me your name?"
             elif "name" in missing:
-                return "Thank you! Could you please tell me your name?"
+                return "Could you please tell me your name?"
             elif "email" in missing:
-                return "Great! What's your email address?"
+                return "What's your email address?"
             elif "age" in missing:
-                return "Perfect! How old are you?"
+                return "How old are you?"
             elif "gender" in missing:
-                return "Thank you! What's your gender?"
+                return "What's your gender?"
             else:
-                return "Perfect! Now, what cardiovascular symptoms are you experiencing? (e.g., chest pain, shortness of breath, fatigue)"
+                return "Thank you! Now, what cardiovascular symptoms are you experiencing?"
         
         elif phase == "symptoms":
             return "What cardiovascular symptoms are you experiencing? Please describe symptoms like chest pain, shortness of breath, palpitations, or fatigue."
