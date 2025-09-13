@@ -392,7 +392,7 @@
             }, []);
             
             const checkCalendarStatus = () => {
-                fetch('http://localhost:8000/auth/google/status')
+                fetch('/auth/google/status')
                     .then(response => response.json())
                     .then(data => {
                         setCalendarStatus({...data, loading: false});
@@ -408,7 +408,7 @@
             };
             
             const handleCalendarAuth = () => {
-                fetch('http://localhost:8000/auth/google')
+                fetch('/auth/google')
                     .then(response => response.json())
                     .then(data => {
                         if (data.auth_url) {
@@ -649,7 +649,7 @@
                 'patient_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9), []
             );
             
-            const { isConnected, messages, sendMessage, connectionStatus } = useWebSocket(`ws://localhost:8000/ws/chat/${sessionId}`);
+            const { isConnected, messages, sendMessage, connectionStatus } = useWebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/chat/${sessionId}`);
 
             useEffect(() => {
                 scrollToBottom();
@@ -687,7 +687,7 @@
             };
 
             const handleDoctorConnect = () => {
-                fetch('http://localhost:8000/auth/google')
+                fetch('/auth/google')
                     .then(response => response.json())
                     .then(data => {
                         if (data.auth_url) {
