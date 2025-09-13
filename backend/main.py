@@ -27,6 +27,11 @@ from database.models import DatabaseManager
 config = get_config("development")  # Use "production" for production deployment
 # config.validate_config()  # Temporarily disabled for Railway deployment
 
+# Debug configuration for Railway
+print("=== RAILWAY CONFIG DEBUG ===")
+config.debug_config()
+print("==============================")
+
 # Initialize services
 db_manager = DatabaseManager(config.DATABASE_PATH)
 ai_service = AIService(config)
