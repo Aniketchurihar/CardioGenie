@@ -418,8 +418,11 @@
                             // Listen for authentication completion
                             const messageListener = (event) => {
                                 if (event.data && event.data.type === 'calendar_connected') {
+                                    console.log('Calendar authentication completed!');
                                     // Authentication successful - refresh calendar status
-                                    checkCalendarStatus();
+                                    setTimeout(() => {
+                                        checkCalendarStatus();
+                                    }, 1000); // Small delay to ensure backend is updated
                                     window.removeEventListener('message', messageListener);
                                 }
                             };

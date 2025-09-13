@@ -6,6 +6,7 @@ Handles all AI-related operations for CardioGenie
 import json
 import sys
 import os
+import requests
 from typing import Dict, Any, Optional
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -26,28 +27,36 @@ class AIService:
         print(f"DEBUG: GROQ_API_KEY exists in env: {'GROQ_API_KEY' in os.environ}")
         print(f"DEBUG: GROQ_API_KEY value length: {len(self.config.GROQ_API_KEY) if self.config.GROQ_API_KEY else 0}")
         
+        # Initialize Groq client with simpler approach
+        self.groq_client = None
+        
         if self.config.GROQ_API_KEY:
             try:
-                import groq
-                # Try different initialization methods for Railway compatibility
-                try:
-                    self.groq_client = groq.Groq(api_key=self.config.GROQ_API_KEY)
-                except TypeError as te:
-                    # Fallback for Railway environment compatibility issues
-                    print(f"WARNING: Groq client initialization issue: {te}")
-                    print("WARNING: AI features will use fallback mode")
+                # Try direct HTTP requests to Groq API if library fails
+                response = requests.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.config.GROQ_API_KEY}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "llama-3.1-8b-instant",
+                        "messages": [{"role": "user", "content": "test"}],
+                        "max_tokens": 5
+                    },
+                    timeout=5
+                )
+                if response.status_code == 200:
+                    print("SUCCESS: Groq API connection verified - using HTTP requests")
+                    self.groq_client = "http_mode"  # Flag to use HTTP requests
+                else:
+                    print(f"WARNING: Groq API test failed: {response.status_code}")
                     self.groq_client = None
-                    return
-                print("SUCCESS: Groq client initialized successfully")
-            except ImportError:
-                print("WARNING: Groq library not available - AI features will be disabled")
-                self.groq_client = None
             except Exception as e:
-                print(f"WARNING: Groq initialization failed: {e} - AI features will be disabled")
+                print(f"WARNING: Groq API connection failed: {e}")
                 self.groq_client = None
         else:
-            # For Railway deployment - allow startup without API key, will fail gracefully on first use
-            print("WARNING: GROQ_API_KEY not found - AI features will be disabled")
+            print("WARNING: GROQ_API_KEY not found - using fallback responses")
             self.groq_client = None
     
     async def generate_welcome_message(self) -> str:
@@ -92,23 +101,52 @@ Return only JSON:"""
     async def generate_response(self, patient_data: Dict[str, Any], user_message: str, phase: str) -> str:
         """Generate contextual AI response"""
         if not self.groq_client:
-            return "I'm sorry, AI services are currently unavailable. Please check your configuration."
+            return self._get_fallback_response(phase, patient_data)
+        
         try:
             system_prompt = self._build_system_prompt(patient_data, phase)
             
-            response = self.groq_client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message}
-                ],
-                max_tokens=80,
-                temperature=0.2
-            )
+            if self.groq_client == "http_mode":
+                # Use direct HTTP requests to Groq API
+                response = requests.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.config.GROQ_API_KEY}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "llama-3.1-8b-instant",
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_message}
+                        ],
+                        "max_tokens": 80,
+                        "temperature": 0.2
+                    },
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    return result["choices"][0]["message"]["content"].strip()
+                else:
+                    print(f"Groq API error: {response.status_code}")
+                    return self._get_fallback_response(phase, patient_data)
+            else:
+                # Use Groq library (if it works)
+                response = self.groq_client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_message}
+                    ],
+                    max_tokens=80,
+                    temperature=0.2
+                )
+                return response.choices[0].message.content.strip()
             
-            return response.choices[0].message.content.strip()
-            
-        except Exception:
+        except Exception as e:
+            print(f"AI generation error: {e}")
             return self._get_fallback_response(phase, patient_data)
     
     def _build_system_prompt(self, patient_data: Dict[str, Any], phase: str) -> str:
