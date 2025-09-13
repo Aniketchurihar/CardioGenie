@@ -112,6 +112,61 @@ async def health_check():
         "timestamp": datetime.now().isoformat()
     }
 
+@app.get("/admin/database")
+async def database_inspection():
+    """Database inspection endpoint for development"""
+    try:
+        import sqlite3
+        import os
+        
+        db_path = config.DATABASE_PATH
+        
+        if not os.path.exists(db_path):
+            return {"error": f"Database file not found: {db_path}"}
+        
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get table info
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = cursor.fetchall()
+        
+        database_info = {
+            "database_path": db_path,
+            "database_size_mb": round(os.path.getsize(db_path) / (1024*1024), 2),
+            "tables": []
+        }
+        
+        for table in tables:
+            table_name = table[0]
+            
+            # Get table schema
+            cursor.execute(f"PRAGMA table_info({table_name});")
+            columns = cursor.fetchall()
+            
+            # Get row count
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name};")
+            row_count = cursor.fetchone()[0]
+            
+            # Get sample data (first 3 rows)
+            cursor.execute(f"SELECT * FROM {table_name} LIMIT 3;")
+            sample_data = cursor.fetchall()
+            
+            table_info = {
+                "name": table_name,
+                "columns": [{"name": col[1], "type": col[2], "not_null": bool(col[3])} for col in columns],
+                "row_count": row_count,
+                "sample_data": sample_data[:3]  # Limit to 3 rows for readability
+            }
+            
+            database_info["tables"].append(table_info)
+        
+        conn.close()
+        return database_info
+        
+    except Exception as e:
+        return {"error": f"Database inspection failed: {str(e)}"}
+
 @app.get("/auth/google")
 async def google_auth():
     """Initiate Google Calendar OAuth flow"""
