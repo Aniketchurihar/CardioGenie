@@ -151,28 +151,25 @@ Return only JSON:"""
     
     def _build_system_prompt(self, patient_data: Dict[str, Any], phase: str) -> str:
         """Build system prompt based on conversation phase"""
-        base_prompt = """You are CardioGenie, a professional AI assistant for cardiology consultations.
+        base_prompt = """You are CardioGenie, a rule-based AI assistant for cardiology consultations.
 
-Your role:
-- Collect patient information professionally
-- Ask relevant medical questions
-- Be empathetic but concise
-- No medical diagnoses or advice
+STRICT RULES:
+- Follow ONLY the structured conversation flow: Basic Info → Symptoms → Follow-up Questions
+- Ask ONE question at a time
+- Keep responses under 20 words
+- NO medical diagnoses or medical advice
+- Use ONLY database rules, NOT your medical knowledge
 
 Current phase: {phase}
 Patient data: Name: {name}, Email: {email}, Age: {age}, Gender: {gender}
 
-Guidelines:
-- Ask only ONE question at a time
-- Keep responses under 25 words
-- Be professional and caring
-- Use medical terminology appropriately"""
+Your ONLY job is to collect information systematically."""
 
         phase_instructions = {
-            "basic_info": "Ask for missing basic information (name, email, age, gender). Be concise.",
-            "symptoms": "Ask what cardiovascular symptoms they are experiencing. One question only.",
-            "follow_up": "This should not be used - follow-up questions come from database rules.",
-            "completed": "Provide professional completion message."
+            "basic_info": "Ask for ONE missing piece: name, email, age, or gender. Nothing else.",
+            "symptoms": "Ask ONLY: 'What cardiovascular symptoms are you experiencing?'",
+            "follow_up": "NEVER used - follow-up questions come from database rules only.",
+            "completed": "Say: 'Thank you. The cardiologist will be notified.'"
         }
 
         return base_prompt.format(
@@ -184,11 +181,37 @@ Guidelines:
         ) + f"\n\nCurrent task: {phase_instructions.get(phase, 'Assist the patient.')}"
     
     def _get_fallback_response(self, phase: str, patient_data: Dict[str, Any]) -> str:
-        """Professional fallback responses"""
-        fallbacks = {
-            "basic_info": "Could you please provide your name, age, and gender?",
-            "symptoms": "What cardiovascular symptoms are you experiencing?",
-            "follow_up": "Could you provide more details about your symptoms?",
-            "completed": "Thank you for providing your information. A cardiologist will review your case."
-        }
-        return fallbacks.get(phase, "How can I assist you today?") 
+        """Rule-based responses following the document requirements"""
+        
+        if phase == "basic_info":
+            # Check what basic info is missing
+            missing = []
+            if not patient_data.get('name'): missing.append("name")
+            if not patient_data.get('email'): missing.append("email")
+            if not patient_data.get('age'): missing.append("age")
+            if not patient_data.get('gender'): missing.append("gender")
+            
+            if len(missing) == 4:  # First interaction
+                return "Hello! I'm CardioGenie, your AI cardiology assistant. To help you better, could you please tell me your name?"
+            elif "name" in missing:
+                return "Thank you! Could you please tell me your name?"
+            elif "email" in missing:
+                return "Great! What's your email address?"
+            elif "age" in missing:
+                return "Perfect! How old are you?"
+            elif "gender" in missing:
+                return "Thank you! What's your gender?"
+            else:
+                return "Perfect! Now, what cardiovascular symptoms are you experiencing? (e.g., chest pain, shortness of breath, fatigue)"
+        
+        elif phase == "symptoms":
+            return "What cardiovascular symptoms are you experiencing? Please describe symptoms like chest pain, shortness of breath, palpitations, or fatigue."
+        
+        elif phase == "follow_up":
+            return "Could you provide more details about your symptoms?"
+        
+        elif phase == "completed":
+            return "Thank you for providing all the information. I'm now notifying the cardiologist and scheduling your appointment. You'll receive a calendar invite shortly!"
+        
+        else:
+            return "Hello! I'm CardioGenie, your AI cardiology assistant. Could you please tell me your name to get started?" 
