@@ -228,7 +228,7 @@ MEDICAL RULES:
             elif "name" in missing:
                 context = "You need the patient's name to personalize the conversation. Be friendly and welcoming."
             elif not has_essential:
-                context = f"You know {name}'s name. Get their email for appointments, but be ready to move on if they mention symptoms."
+                context = f"You know {name}'s name. You MUST get their email for appointment scheduling - this is mandatory before proceeding."
             elif info_count >= 2:
                 context = f"You have {name}'s essential info. You can ask for one more detail, but prioritize moving to symptoms if they mention any health concerns."
             else:
@@ -267,9 +267,9 @@ MEDICAL RULES:
             elif "name" in missing:
                 return "I'd love to help you today! Could you please tell me your name so I can assist you better?"
             
-            # If we have name but missing email, ask for it (needed for appointments)
-            elif "email" in missing and info_count < 3:
-                return f"Thanks, {name}! I'll need your email to send appointment details. What's your email address?"
+            # Email is ALWAYS required - ask for it if missing
+            elif "email" in missing:
+                return f"Thanks, {name}! I'll need your email address to send you appointment details. What's your email?"
             
             # If we have name and email, we can be more flexible about age/gender
             elif info_count >= 2:

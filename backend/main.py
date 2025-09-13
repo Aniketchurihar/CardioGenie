@@ -641,13 +641,17 @@ async def process_basic_info(patient: PatientSession, message: str):
     symptom_keywords = ["pain", "chest", "heart", "breath", "dizzy", "tired", "fatigue", "palpitation", "pressure"]
     mentions_symptoms = any(keyword in message.lower() for keyword in symptom_keywords)
     
+    # Move to symptoms phase ONLY if we have essential info (name + email)
+    # Email is MANDATORY for appointment scheduling
     # Move to symptoms phase if:
-    # 1. All basic info is collected, OR
-    # 2. We have at least 3 pieces of info and user mentions symptoms, OR  
-    # 3. We have name + email (minimum for appointment) and user mentions symptoms
-    if (info_count >= 4) or \
-       (info_count >= 3 and mentions_symptoms) or \
-       (has_name and has_email and mentions_symptoms):
+    # 1. We have name + email + at least one more field (age or gender), OR
+    # 2. We have name + email and user mentions symptoms, OR
+    # 3. All basic info is collected
+    if has_name and has_email and (
+        (info_count >= 3) or  # name + email + at least one more
+        mentions_symptoms or  # name + email + symptoms mentioned
+        (info_count >= 4)     # all info collected
+    ):
         patient.phase = "symptoms"
 
     
@@ -761,9 +765,13 @@ def generate_symptom_keywords() -> Dict[str, List[str]]:
         }
 
 def is_consultation_complete(patient: PatientSession) -> bool:
-    """Check if consultation is complete with flexible requirements"""
-    # Essential info: name and email (for appointment scheduling)
+    """Check if consultation is complete - name and email are MANDATORY"""
+    # Essential info: name and email (MANDATORY for appointment scheduling)
     essential_info = patient.name and patient.email
+    
+    # Must have essential info to complete
+    if not essential_info:
+        return False
     
     # Optional but helpful: age and gender (at least one)
     demographic_info = patient.age or patient.gender
