@@ -327,6 +327,20 @@
             .space-y-6 > * + * {
                 margin-top: 1rem !important;
             }
+            
+            /* Doctor dashboard button mobile */
+            .doctor-dashboard-btn {
+                padding: 8px 12px !important;
+                font-size: 0.85rem !important;
+            }
+            
+            .doctor-dashboard-btn span {
+                display: none !important;
+            }
+            
+            .doctor-dashboard-btn i {
+                margin-right: 0 !important;
+            }
         }
         
         /* Small mobile devices */
@@ -400,6 +414,20 @@
         .hover-lift:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Doctor Dashboard Button */
+        .doctor-dashboard-btn {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .doctor-dashboard-btn:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.2) 100%);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
         }
 
         /* Message Icons */
@@ -870,7 +898,13 @@
                                         <p className="text-white text-opacity-70 text-sm mt-1">Professional • Secure • Intelligent</p>
                                     </div>
                                 </div>
-                                <ConnectionStatus isConnected={isConnected} connectionStatus={connectionStatus} />
+                                <div className="flex items-center space-x-4">
+                                    <a href="/doctor" target="_blank" className="doctor-dashboard-btn px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg text-white font-medium transition-all duration-300 flex items-center space-x-2 hover-lift">
+                                        <i className="fas fa-chart-line"></i>
+                                        <span>Doctor Dashboard</span>
+                                    </a>
+                                    <ConnectionStatus isConnected={isConnected} connectionStatus={connectionStatus} />
+                                </div>
                             </div>
                         </div>
 
