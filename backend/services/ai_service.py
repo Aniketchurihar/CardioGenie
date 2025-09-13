@@ -29,12 +29,22 @@ class AIService:
         if self.config.GROQ_API_KEY:
             try:
                 import groq
-                self.groq_client = groq.Groq(api_key=self.config.GROQ_API_KEY)
+                # Try different initialization methods for Railway compatibility
+                try:
+                    self.groq_client = groq.Groq(api_key=self.config.GROQ_API_KEY)
+                except TypeError as te:
+                    # Fallback for Railway environment compatibility issues
+                    print(f"WARNING: Groq client initialization issue: {te}")
+                    print("WARNING: AI features will use fallback mode")
+                    self.groq_client = None
+                    return
                 print("SUCCESS: Groq client initialized successfully")
             except ImportError:
-                raise ImportError("Groq library not installed. Install with: pip install groq")
+                print("WARNING: Groq library not available - AI features will be disabled")
+                self.groq_client = None
             except Exception as e:
-                raise RuntimeError(f"Groq initialization failed: {e}")
+                print(f"WARNING: Groq initialization failed: {e} - AI features will be disabled")
+                self.groq_client = None
         else:
             # For Railway deployment - allow startup without API key, will fail gracefully on first use
             print("WARNING: GROQ_API_KEY not found - AI features will be disabled")
