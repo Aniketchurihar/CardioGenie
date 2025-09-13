@@ -157,9 +157,9 @@ async def doctor_dashboard():
         
         # Recent Consultations (last 10)
         cursor.execute("""
-            SELECT session_id, name, email, age, gender, symptoms, responses, status, created_at, updated_at
+            SELECT session_id, name, email, age, gender, symptoms, responses, status, created_at, completed_at
             FROM patients 
-            ORDER BY updated_at DESC 
+            ORDER BY created_at DESC 
             LIMIT 10
         """)
         recent_data = cursor.fetchall()
@@ -175,7 +175,7 @@ async def doctor_dashboard():
                 "responses": json.loads(row[6]) if row[6] else {},
                 "status": row[7],
                 "created_at": row[8],
-                "updated_at": row[9],
+                "completed_at": row[9],
                 "duration_minutes": None
             }
             
@@ -183,8 +183,8 @@ async def doctor_dashboard():
             if row[8] and row[9]:
                 try:
                     created = datetime.fromisoformat(row[8].replace('Z', '+00:00'))
-                    updated = datetime.fromisoformat(row[9].replace('Z', '+00:00'))
-                    duration = (updated - created).total_seconds() / 60
+                    completed = datetime.fromisoformat(row[9].replace('Z', '+00:00'))
+                    duration = (completed - created).total_seconds() / 60
                     consultation["duration_minutes"] = round(duration, 1)
                 except:
                     pass
@@ -272,7 +272,7 @@ async def get_all_patients():
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT session_id, name, email, age, gender, symptoms, responses, status, created_at, updated_at
+            SELECT session_id, name, email, age, gender, symptoms, responses, status, created_at, completed_at
             FROM patients 
             ORDER BY created_at DESC
         """)
@@ -289,7 +289,7 @@ async def get_all_patients():
                 "responses": json.loads(row[6]) if row[6] else {},
                 "status": row[7],
                 "created_at": row[8],
-                "updated_at": row[9]
+                "completed_at": row[9]
             }
             patients.append(patient)
         
@@ -311,7 +311,7 @@ async def get_patient_details(session_id: str):
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT session_id, name, email, age, gender, symptoms, responses, status, created_at, updated_at
+            SELECT session_id, name, email, age, gender, symptoms, responses, status, created_at, completed_at
             FROM patients 
             WHERE session_id = ?
         """, (session_id,))
@@ -330,7 +330,7 @@ async def get_patient_details(session_id: str):
             "responses": json.loads(row[6]) if row[6] else {},
             "status": row[7],
             "created_at": row[8],
-            "updated_at": row[9]
+            "completed_at": row[9]
         }
         
         # Get conversation history if available
