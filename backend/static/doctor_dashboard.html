@@ -13,13 +13,17 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
-            --shadow-light: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            --shadow-heavy: 0 20px 40px 0 rgba(31, 38, 135, 0.5);
+            --primary-gradient: linear-gradient(135deg, #1e3a8a 0%, #312e81 100%);
+            --secondary-gradient: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            --success-gradient: linear-gradient(135deg, #059669 0%, #047857 100%);
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --text-primary: #1f2937;
+            --text-secondary: #4b5563;
+            --text-light: #6b7280;
+            --shadow-light: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+            --shadow-heavy: 0 20px 40px 0 rgba(0, 0, 0, 0.15);
         }
 
         body {
@@ -36,16 +40,18 @@
             border: 1px solid var(--glass-border);
             border-radius: 20px;
             box-shadow: var(--shadow-light);
+            color: var(--text-primary);
         }
 
         .stat-card {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%);
+            background: var(--card-bg);
             backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
             border-radius: 16px;
             padding: 24px;
             text-align: center;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            color: var(--text-primary);
         }
 
         .stat-card:hover {
@@ -54,18 +60,20 @@
         }
 
         .patient-card {
-            background: rgba(255, 255, 255, 0.1);
+            background: var(--card-bg);
             backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 16px;
             transition: all 0.3s ease;
+            color: var(--text-primary);
         }
 
         .patient-card:hover {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.95);
             transform: translateX(5px);
+            box-shadow: var(--shadow-light);
         }
 
         .status-badge {
@@ -77,46 +85,52 @@
         }
 
         .status-completed {
-            background: rgba(16, 185, 129, 0.2);
-            color: #10b981;
-            border: 1px solid rgba(16, 185, 129, 0.3);
+            background: rgba(16, 185, 129, 0.9);
+            color: white;
+            border: 1px solid rgba(16, 185, 129, 1);
+            font-weight: 700;
         }
 
         .status-active {
-            background: rgba(59, 130, 246, 0.2);
-            color: #3b82f6;
-            border: 1px solid rgba(59, 130, 246, 0.3);
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+            border: 1px solid rgba(59, 130, 246, 1);
+            font-weight: 700;
         }
 
         .status-pending {
-            background: rgba(245, 158, 11, 0.2);
-            color: #f59e0b;
-            border: 1px solid rgba(245, 158, 11, 0.3);
+            background: rgba(245, 158, 11, 0.9);
+            color: white;
+            border: 1px solid rgba(245, 158, 11, 1);
+            font-weight: 700;
         }
 
         .chart-container {
             position: relative;
             height: 300px;
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.8);
             border-radius: 12px;
             padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
         }
 
         .nav-tab {
             padding: 12px 24px;
             border-radius: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            color: rgba(255, 255, 255, 0.7);
-            border: none;
+            background: rgba(255, 255, 255, 0.8);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.4);
             cursor: pointer;
             transition: all 0.3s ease;
             margin-right: 8px;
+            font-weight: 500;
         }
 
         .nav-tab.active {
-            background: rgba(255, 255, 255, 0.2);
+            background: var(--primary-gradient);
             color: white;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.6);
         }
 
         .loading-spinner {
@@ -162,15 +176,15 @@
         <div class="glass-card p-6 mb-8">
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-3xl font-bold text-white mb-2">
-                        <i class="fas fa-heartbeat text-red-400 mr-3"></i>
+                    <h1 class="text-3xl font-bold mb-2" style="color: var(--text-primary);">
+                        <i class="fas fa-heartbeat text-red-600 mr-3"></i>
                         CardioGenie Doctor Dashboard
                     </h1>
-                    <p class="text-gray-200">Patient Analytics & Consultation Management</p>
+                    <p style="color: var(--text-secondary);">Patient Analytics & Consultation Management</p>
                 </div>
                 <div class="text-right">
-                    <p class="text-sm text-gray-300" id="lastUpdated">Loading...</p>
-                    <button onclick="refreshData()" class="mt-2 px-4 py-2 bg-white bg-opacity-20 rounded-lg text-white hover:bg-opacity-30 transition-all">
+                    <p class="text-sm" style="color: var(--text-light);" id="lastUpdated">Loading...</p>
+                    <button onclick="refreshData()" class="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white transition-all font-medium">
                         <i class="fas fa-sync-alt mr-2"></i>Refresh
                     </button>
                 </div>
@@ -198,40 +212,40 @@
             <!-- Summary Stats -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <div class="stat-card">
-                    <div class="text-3xl font-bold text-white mb-2" id="totalPatients">-</div>
-                    <div class="text-gray-200">Total Patients</div>
-                    <div class="text-sm text-green-300 mt-1" id="patientsToday">- today</div>
+                    <div class="text-3xl font-bold mb-2" style="color: var(--text-primary);" id="totalPatients">-</div>
+                    <div style="color: var(--text-secondary);">Total Patients</div>
+                    <div class="text-sm text-green-600 mt-1 font-medium" id="patientsToday">- today</div>
                 </div>
                 <div class="stat-card">
-                    <div class="text-3xl font-bold text-white mb-2" id="completedConsultations">-</div>
-                    <div class="text-gray-200">Completed</div>
-                    <div class="text-sm text-blue-300 mt-1" id="completionRate">-% completion rate</div>
+                    <div class="text-3xl font-bold mb-2" style="color: var(--text-primary);" id="completedConsultations">-</div>
+                    <div style="color: var(--text-secondary);">Completed</div>
+                    <div class="text-sm text-blue-600 mt-1 font-medium" id="completionRate">-% completion rate</div>
                 </div>
                 <div class="stat-card">
-                    <div class="text-3xl font-bold text-white mb-2" id="patientsThisWeek">-</div>
-                    <div class="text-gray-200">This Week</div>
-                    <div class="text-sm text-purple-300 mt-1">Last 7 days</div>
+                    <div class="text-3xl font-bold mb-2" style="color: var(--text-primary);" id="patientsThisWeek">-</div>
+                    <div style="color: var(--text-secondary);">This Week</div>
+                    <div class="text-sm text-purple-600 mt-1 font-medium">Last 7 days</div>
                 </div>
                 <div class="stat-card">
-                    <div class="text-3xl font-bold text-white mb-2" id="topSymptom">-</div>
-                    <div class="text-gray-200">Top Symptom</div>
-                    <div class="text-sm text-yellow-300 mt-1" id="topSymptomCount">- cases</div>
+                    <div class="text-3xl font-bold mb-2" style="color: var(--text-primary);" id="topSymptom">-</div>
+                    <div style="color: var(--text-secondary);">Top Symptom</div>
+                    <div class="text-sm text-orange-600 mt-1 font-medium" id="topSymptomCount">- cases</div>
                 </div>
             </div>
 
             <!-- Charts Row -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div class="glass-card p-6">
-                    <h3 class="text-xl font-semibold text-white mb-4">
-                        <i class="fas fa-chart-pie mr-2"></i>Patient Demographics
+                    <h3 class="text-xl font-semibold mb-4" style="color: var(--text-primary);">
+                        <i class="fas fa-chart-pie mr-2 text-blue-600"></i>Patient Demographics
                     </h3>
                     <div class="chart-container">
                         <canvas id="demographicsChart"></canvas>
                     </div>
                 </div>
                 <div class="glass-card p-6">
-                    <h3 class="text-xl font-semibold text-white mb-4">
-                        <i class="fas fa-chart-bar mr-2"></i>Top Symptoms
+                    <h3 class="text-xl font-semibold mb-4" style="color: var(--text-primary);">
+                        <i class="fas fa-chart-bar mr-2 text-green-600"></i>Top Symptoms
                     </h3>
                     <div class="chart-container">
                         <canvas id="symptomsChart"></canvas>
@@ -241,8 +255,8 @@
 
             <!-- Recent Consultations -->
             <div class="glass-card p-6">
-                <h3 class="text-xl font-semibold text-white mb-4">
-                    <i class="fas fa-clock mr-2"></i>Recent Consultations
+                <h3 class="text-xl font-semibold mb-4" style="color: var(--text-primary);">
+                    <i class="fas fa-clock mr-2 text-purple-600"></i>Recent Consultations
                 </h3>
                 <div id="recentConsultations">
                     <div class="loading-spinner"></div>
