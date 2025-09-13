@@ -23,15 +23,8 @@ class Config:
     DOCTOR_EMAIL = os.getenv("DOCTOR_EMAIL", "aniket.ch71@gmail.com")
     GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-    GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")  # No fallback - force Railway to use env var
+    GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback")
     GOOGLE_SCOPES = ["https://www.googleapis.com/auth/calendar"]
-    
-    # Debug logging for Railway deployment
-    @classmethod
-    def debug_config(cls):
-        print(f"DEBUG CONFIG - GOOGLE_REDIRECT_URI: {cls.GOOGLE_REDIRECT_URI}")
-        print(f"DEBUG CONFIG - Environment GOOGLE_REDIRECT_URI: {os.getenv('GOOGLE_REDIRECT_URI')}")
-        return cls.GOOGLE_REDIRECT_URI
     
     # Server Configuration
     HOST = "0.0.0.0"
