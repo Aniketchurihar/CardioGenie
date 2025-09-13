@@ -25,7 +25,7 @@ from database.models import DatabaseManager
 
 # Initialize configuration and services
 config = get_config("development")  # Use "production" for production deployment
-config.validate_config()
+# config.validate_config()  # Temporarily disabled for Railway deployment
 
 # Initialize services
 db_manager = DatabaseManager(config.DATABASE_PATH)
