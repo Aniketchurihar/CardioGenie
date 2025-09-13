@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#667eea">
+    <title>CardioGenie - Doctor Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --shadow-light: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            --shadow-heavy: 0 20px 40px 0 rgba(31, 38, 135, 0.5);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--primary-gradient);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: var(--shadow-light);
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .patient-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .patient-card:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(5px);
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-completed {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-active {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .status-pending {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .nav-tab {
+            padding: 12px 24px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 8px;
+        }
+
+        .nav-tab.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid white;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px !important;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr !important;
+                gap: 16px !important;
+            }
+            
+            .stat-card {
+                padding: 16px !important;
+            }
+            
+            .nav-tab {
+                padding: 8px 16px !important;
+                font-size: 0.85rem !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto px-6 py-8">
+        <!-- Header -->
+        <div class="glass-card p-6 mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-white mb-2">
+                        <i class="fas fa-heartbeat text-red-400 mr-3"></i>
+                        CardioGenie Doctor Dashboard
+                    </h1>
+                    <p class="text-gray-200">Patient Analytics & Consultation Management</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm text-gray-300" id="lastUpdated">Loading...</p>
+                    <button onclick="refreshData()" class="mt-2 px-4 py-2 bg-white bg-opacity-20 rounded-lg text-white hover:bg-opacity-30 transition-all">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="mb-6">
+            <button class="nav-tab active" onclick="showTab('dashboard')">
+                <i class="fas fa-chart-line mr-2"></i>Dashboard
+            </button>
+            <button class="nav-tab" onclick="showTab('patients')">
+                <i class="fas fa-users mr-2"></i>Patients
+            </button>
+            <button class="nav-tab" onclick="showTab('analytics')">
+                <i class="fas fa-chart-bar mr-2"></i>Analytics
+            </button>
+            <button class="nav-tab" onclick="showTab('database')">
+                <i class="fas fa-database mr-2"></i>Database
+            </button>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard-tab" class="tab-content">
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="stat-card">
+                    <div class="text-3xl font-bold text-white mb-2" id="totalPatients">-</div>
+                    <div class="text-gray-200">Total Patients</div>
+                    <div class="text-sm text-green-300 mt-1" id="patientsToday">- today</div>
+                </div>
+                <div class="stat-card">
+                    <div class="text-3xl font-bold text-white mb-2" id="completedConsultations">-</div>
+                    <div class="text-gray-200">Completed</div>
+                    <div class="text-sm text-blue-300 mt-1" id="completionRate">-% completion rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="text-3xl font-bold text-white mb-2" id="patientsThisWeek">-</div>
+                    <div class="text-gray-200">This Week</div>
+                    <div class="text-sm text-purple-300 mt-1">Last 7 days</div>
+                </div>
+                <div class="stat-card">
+                    <div class="text-3xl font-bold text-white mb-2" id="topSymptom">-</div>
+                    <div class="text-gray-200">Top Symptom</div>
+                    <div class="text-sm text-yellow-300 mt-1" id="topSymptomCount">- cases</div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div class="glass-card p-6">
+                    <h3 class="text-xl font-semibold text-white mb-4">
+                        <i class="fas fa-chart-pie mr-2"></i>Patient Demographics
+                    </h3>
+                    <div class="chart-container">
+                        <canvas id="demographicsChart"></canvas>
+                    </div>
+                </div>
+                <div class="glass-card p-6">
+                    <h3 class="text-xl font-semibold text-white mb-4">
+                        <i class="fas fa-chart-bar mr-2"></i>Top Symptoms
+                    </h3>
+                    <div class="chart-container">
+                        <canvas id="symptomsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Consultations -->
+            <div class="glass-card p-6">
+                <h3 class="text-xl font-semibold text-white mb-4">
+                    <i class="fas fa-clock mr-2"></i>Recent Consultations
+                </h3>
+                <div id="recentConsultations">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Patients Tab -->
+        <div id="patients-tab" class="tab-content hidden">
+            <div class="glass-card p-6">
+                <h3 class="text-xl font-semibold text-white mb-4">
+                    <i class="fas fa-users mr-2"></i>All Patients
+                </h3>
+                <div id="allPatients">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div id="analytics-tab" class="tab-content hidden">
+            <div class="glass-card p-6">
+                <h3 class="text-xl font-semibold text-white mb-4">
+                    <i class="fas fa-chart-line mr-2"></i>Advanced Analytics
+                </h3>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="chart-container">
+                        <canvas id="dailyStatsChart"></canvas>
+                    </div>
+                    <div id="analyticsData">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Database Tab -->
+        <div id="database-tab" class="tab-content hidden">
+            <div class="glass-card p-6">
+                <h3 class="text-xl font-semibold text-white mb-4">
+                    <i class="fas fa-database mr-2"></i>Database Information
+                </h3>
+                <div id="databaseInfo">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let dashboardData = null;
+        let charts = {};
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboard();
+        });
+
+        // Tab switching
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            
+            // Remove active class from all nav tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.remove('hidden');
+            event.target.classList.add('active');
+            
+            // Load data for specific tabs
+            if (tabName === 'patients' && !document.getElementById('allPatients').innerHTML.includes('patient-card')) {
+                loadPatients();
+            } else if (tabName === 'analytics' && !document.getElementById('analyticsData').innerHTML.includes('analytics-loaded')) {
+                loadAnalytics();
+            } else if (tabName === 'database' && !document.getElementById('databaseInfo').innerHTML.includes('database-loaded')) {
+                loadDatabase();
+            }
+        }
+
+        // Load dashboard data
+        async function loadDashboard() {
+            try {
+                const response = await fetch('/admin/dashboard');
+                dashboardData = await response.json();
+                
+                if (dashboardData.error) {
+                    throw new Error(dashboardData.error);
+                }
+                
+                updateDashboardUI();
+                createCharts();
+                
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+                showError('Failed to load dashboard data');
+            }
+        }
+
+        // Update dashboard UI
+        function updateDashboardUI() {
+            const summary = dashboardData.summary;
+            const systemStatus = dashboardData.system_status;
+            
+            // Update summary stats
+            document.getElementById('totalPatients').textContent = summary.total_patients;
+            document.getElementById('completedConsultations').textContent = summary.completed_consultations;
+            document.getElementById('patientsThisWeek').textContent = summary.patients_this_week;
+            document.getElementById('patientsToday').textContent = summary.patients_today + ' today';
+            document.getElementById('completionRate').textContent = summary.completion_rate + '% completion rate';
+            
+            // Update top symptom
+            const topSymptom = dashboardData.symptom_analytics.most_common;
+            if (topSymptom) {
+                document.getElementById('topSymptom').textContent = topSymptom[0];
+                document.getElementById('topSymptomCount').textContent = topSymptom[1] + ' cases';
+            }
+            
+            // Update last updated time
+            document.getElementById('lastUpdated').textContent = 'Last updated: ' + new Date(systemStatus.last_updated).toLocaleString();
+            
+            // Update recent consultations
+            updateRecentConsultations();
+        }
+
+        // Update recent consultations
+        function updateRecentConsultations() {
+            const container = document.getElementById('recentConsultations');
+            const consultations = dashboardData.recent_consultations;
+            
+            if (consultations.length === 0) {
+                container.innerHTML = '<p class="text-gray-300 text-center py-8">No recent consultations</p>';
+                return;
+            }
+            
+            let html = '';
+            consultations.forEach(consultation => {
+                const statusClass = consultation.status === 'completed' ? 'status-completed' : 
+                                  consultation.status === 'active' ? 'status-active' : 'status-pending';
+                
+                const symptoms = consultation.symptoms.length > 0 ? consultation.symptoms.join(', ') : 'No symptoms recorded';
+                const duration = consultation.duration_minutes ? `${consultation.duration_minutes} min` : 'N/A';
+                
+                html += `
+                    <div class="patient-card">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h4 class="text-white font-semibold">${consultation.name}</h4>
+                                <p class="text-gray-300 text-sm">${consultation.email}</p>
+                            </div>
+                            <span class="status-badge ${statusClass}">${consultation.status}</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-400">Age/Gender:</span>
+                                <span class="text-white ml-2">${consultation.age}, ${consultation.gender}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">Duration:</span>
+                                <span class="text-white ml-2">${duration}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">Date:</span>
+                                <span class="text-white ml-2">${new Date(consultation.created_at).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <span class="text-gray-400">Symptoms:</span>
+                            <span class="text-white ml-2">${symptoms}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // Create charts
+        function createCharts() {
+            createDemographicsChart();
+            createSymptomsChart();
+        }
+
+        // Create demographics chart
+        function createDemographicsChart() {
+            const ctx = document.getElementById('demographicsChart').getContext('2d');
+            const demographics = dashboardData.patient_demographics;
+            
+            if (charts.demographics) {
+                charts.demographics.destroy();
+            }
+            
+            charts.demographics = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(demographics.gender_distribution),
+                    datasets: [{
+                        data: Object.values(demographics.gender_distribution),
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(236, 72, 153, 0.8)',
+                            'rgba(16, 185, 129, 0.8)'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'white'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create symptoms chart
+        function createSymptomsChart() {
+            const ctx = document.getElementById('symptomsChart').getContext('2d');
+            const symptoms = dashboardData.symptom_analytics.top_symptoms.slice(0, 5);
+            
+            if (charts.symptoms) {
+                charts.symptoms.destroy();
+            }
+            
+            charts.symptoms = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: symptoms.map(s => s[0]),
+                    datasets: [{
+                        label: 'Cases',
+                        data: symptoms.map(s => s[1]),
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'white'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: 'white'
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: 'white'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Load patients data
+        async function loadPatients() {
+            try {
+                const response = await fetch('/admin/patients');
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                updatePatientsUI(data.patients);
+                
+            } catch (error) {
+                console.error('Failed to load patients:', error);
+                showError('Failed to load patients data');
+            }
+        }
+
+        // Update patients UI
+        function updatePatientsUI(patients) {
+            const container = document.getElementById('allPatients');
+            
+            if (patients.length === 0) {
+                container.innerHTML = '<p class="text-gray-300 text-center py-8">No patients found</p>';
+                return;
+            }
+            
+            let html = '';
+            patients.forEach(patient => {
+                const statusClass = patient.status === 'completed' ? 'status-completed' : 
+                                  patient.status === 'active' ? 'status-active' : 'status-pending';
+                
+                const symptoms = patient.symptoms.length > 0 ? patient.symptoms.join(', ') : 'No symptoms recorded';
+                
+                html += `
+                    <div class="patient-card cursor-pointer" onclick="viewPatientDetails('${patient.session_id}')">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h4 class="text-white font-semibold">${patient.name}</h4>
+                                <p class="text-gray-300 text-sm">${patient.email}</p>
+                            </div>
+                            <span class="status-badge ${statusClass}">${patient.status}</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-400">Age/Gender:</span>
+                                <span class="text-white ml-2">${patient.age}, ${patient.gender}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">Session ID:</span>
+                                <span class="text-white ml-2">${patient.session_id.substring(0, 8)}...</span>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <span class="text-gray-400">Symptoms:</span>
+                            <span class="text-white ml-2">${symptoms}</span>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-400">
+                            Created: ${new Date(patient.created_at).toLocaleString()}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // Load analytics data
+        async function loadAnalytics() {
+            try {
+                const response = await fetch('/admin/analytics');
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                updateAnalyticsUI(data);
+                createDailyStatsChart(data.daily_stats);
+                
+            } catch (error) {
+                console.error('Failed to load analytics:', error);
+                showError('Failed to load analytics data');
+            }
+        }
+
+        // Update analytics UI
+        function updateAnalyticsUI(data) {
+            const container = document.getElementById('analyticsData');
+            
+            let html = `
+                <div class="analytics-loaded">
+                    <h4 class="text-white font-semibold mb-4">Completion Analysis</h4>
+                    <div class="space-y-3">
+            `;
+            
+            Object.entries(data.completion_analysis.status_distribution).forEach(([status, count]) => {
+                const percentage = ((count / Object.values(data.completion_analysis.status_distribution).reduce((a, b) => a + b, 0)) * 100).toFixed(1);
+                html += `
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-300 capitalize">${status}:</span>
+                        <span class="text-white">${count} (${percentage}%)</span>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                    <div class="mt-6">
+                        <h4 class="text-white font-semibold mb-2">Overall Completion Rate</h4>
+                        <div class="text-2xl font-bold text-green-400">${data.completion_analysis.completion_rate}%</div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+
+        // Create daily stats chart
+        function createDailyStatsChart(dailyStats) {
+            const ctx = document.getElementById('dailyStatsChart').getContext('2d');
+            
+            if (charts.dailyStats) {
+                charts.dailyStats.destroy();
+            }
+            
+            // Reverse to show chronological order
+            const reversedStats = dailyStats.reverse();
+            
+            charts.dailyStats = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: reversedStats.map(stat => new Date(stat.date).toLocaleDateString()),
+                    datasets: [{
+                        label: 'Daily Patients',
+                        data: reversedStats.map(stat => stat.patient_count),
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'white'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: 'white'
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: 'white'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Load database info
+        async function loadDatabase() {
+            try {
+                const response = await fetch('/admin/database');
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                updateDatabaseUI(data);
+                
+            } catch (error) {
+                console.error('Failed to load database info:', error);
+                showError('Failed to load database information');
+            }
+        }
+
+        // Update database UI
+        function updateDatabaseUI(data) {
+            const container = document.getElementById('databaseInfo');
+            
+            let html = `
+                <div class="database-loaded">
+                    <div class="mb-6">
+                        <h4 class="text-white font-semibold mb-2">Database Overview</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-400">Database Size:</span>
+                                <span class="text-white ml-2">${data.database_size_mb} MB</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">Total Tables:</span>
+                                <span class="text-white ml-2">${data.tables.length}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+            `;
+            
+            data.tables.forEach(table => {
+                html += `
+                    <div class="patient-card">
+                        <h5 class="text-white font-semibold mb-2">${table.name}</h5>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-3">
+                            <div>
+                                <span class="text-gray-400">Columns:</span>
+                                <span class="text-white ml-2">${table.columns.length}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">Rows:</span>
+                                <span class="text-white ml-2">${table.row_count}</span>
+                            </div>
+                        </div>
+                        <div class="text-xs text-gray-400">
+                            Columns: ${table.columns.map(col => col.name).join(', ')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+
+        // View patient details
+        async function viewPatientDetails(sessionId) {
+            try {
+                const response = await fetch(`/admin/patient/${sessionId}`);
+                const patient = await response.json();
+                
+                if (patient.error) {
+                    throw new Error(patient.error);
+                }
+                
+                // Create modal or detailed view
+                alert(`Patient Details:\n\nName: ${patient.name}\nEmail: ${patient.email}\nAge: ${patient.age}\nGender: ${patient.gender}\nSymptoms: ${patient.symptoms.join(', ')}\nStatus: ${patient.status}`);
+                
+            } catch (error) {
+                console.error('Failed to load patient details:', error);
+                showError('Failed to load patient details');
+            }
+        }
+
+        // Refresh data
+        function refreshData() {
+            loadDashboard();
+            
+            // Refresh other tabs if they're loaded
+            const patientsTab = document.getElementById('allPatients');
+            if (patientsTab.innerHTML.includes('patient-card')) {
+                loadPatients();
+            }
+            
+            const analyticsTab = document.getElementById('analyticsData');
+            if (analyticsTab.innerHTML.includes('analytics-loaded')) {
+                loadAnalytics();
+            }
+            
+            const databaseTab = document.getElementById('databaseInfo');
+            if (databaseTab.innerHTML.includes('database-loaded')) {
+                loadDatabase();
+            }
+        }
+
+        // Show error message
+        function showError(message) {
+            console.error(message);
+            // You could implement a toast notification here
+        }
+    </script>
+</body>
+</html> 

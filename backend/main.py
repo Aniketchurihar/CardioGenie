@@ -112,6 +112,325 @@ async def health_check():
         "timestamp": datetime.now().isoformat()
     }
 
+@app.get("/admin/dashboard")
+async def doctor_dashboard():
+    """Comprehensive doctor dashboard with patient analytics"""
+    try:
+        from database.models import DatabaseManager
+        import sqlite3
+        import json
+        from datetime import datetime, timedelta
+        
+        db_manager = DatabaseManager(config.DATABASE_PATH)
+        conn = db_manager.get_connection()
+        cursor = conn.cursor()
+        
+        # Get dashboard statistics
+        dashboard_data = {
+            "summary": {},
+            "recent_consultations": [],
+            "symptom_analytics": {},
+            "patient_demographics": {},
+            "system_status": {}
+        }
+        
+        # Summary Statistics
+        cursor.execute("SELECT COUNT(*) FROM patients")
+        total_patients = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM patients WHERE status = 'completed'")
+        completed_consultations = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM patients WHERE created_at >= datetime('now', '-24 hours')")
+        patients_today = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM patients WHERE created_at >= datetime('now', '-7 days')")
+        patients_this_week = cursor.fetchone()[0]
+        
+        dashboard_data["summary"] = {
+            "total_patients": total_patients,
+            "completed_consultations": completed_consultations,
+            "patients_today": patients_today,
+            "patients_this_week": patients_this_week,
+            "completion_rate": round((completed_consultations / max(total_patients, 1)) * 100, 1)
+        }
+        
+        # Recent Consultations (last 10)
+        cursor.execute("""
+            SELECT session_id, name, email, age, gender, symptoms, responses, status, created_at, updated_at
+            FROM patients 
+            ORDER BY updated_at DESC 
+            LIMIT 10
+        """)
+        recent_data = cursor.fetchall()
+        
+        for row in recent_data:
+            consultation = {
+                "session_id": row[0],
+                "name": row[1] or "Not provided",
+                "email": row[2] or "Not provided", 
+                "age": row[3] or "Not provided",
+                "gender": row[4] or "Not provided",
+                "symptoms": json.loads(row[5]) if row[5] else [],
+                "responses": json.loads(row[6]) if row[6] else {},
+                "status": row[7],
+                "created_at": row[8],
+                "updated_at": row[9],
+                "duration_minutes": None
+            }
+            
+            # Calculate consultation duration
+            if row[8] and row[9]:
+                try:
+                    created = datetime.fromisoformat(row[8].replace('Z', '+00:00'))
+                    updated = datetime.fromisoformat(row[9].replace('Z', '+00:00'))
+                    duration = (updated - created).total_seconds() / 60
+                    consultation["duration_minutes"] = round(duration, 1)
+                except:
+                    pass
+            
+            dashboard_data["recent_consultations"].append(consultation)
+        
+        # Symptom Analytics
+        cursor.execute("""
+            SELECT symptoms FROM patients 
+            WHERE symptoms IS NOT NULL AND symptoms != '[]'
+        """)
+        symptom_data = cursor.fetchall()
+        
+        symptom_counts = {}
+        for row in symptom_data:
+            try:
+                symptoms = json.loads(row[0])
+                for symptom in symptoms:
+                    symptom_counts[symptom] = symptom_counts.get(symptom, 0) + 1
+            except:
+                continue
+        
+        # Sort symptoms by frequency
+        sorted_symptoms = sorted(symptom_counts.items(), key=lambda x: x[1], reverse=True)
+        dashboard_data["symptom_analytics"] = {
+            "top_symptoms": sorted_symptoms[:10],
+            "total_unique_symptoms": len(symptom_counts),
+            "most_common": sorted_symptoms[0] if sorted_symptoms else None
+        }
+        
+        # Patient Demographics
+        cursor.execute("SELECT gender, COUNT(*) FROM patients WHERE gender IS NOT NULL GROUP BY gender")
+        gender_data = cursor.fetchall()
+        
+        cursor.execute("SELECT age FROM patients WHERE age IS NOT NULL")
+        age_data = cursor.fetchall()
+        
+        age_groups = {"18-30": 0, "31-45": 0, "46-60": 0, "60+": 0}
+        for row in age_data:
+            age = row[0]
+            if age <= 30:
+                age_groups["18-30"] += 1
+            elif age <= 45:
+                age_groups["31-45"] += 1
+            elif age <= 60:
+                age_groups["46-60"] += 1
+            else:
+                age_groups["60+"] += 1
+        
+        dashboard_data["patient_demographics"] = {
+            "gender_distribution": dict(gender_data),
+            "age_groups": age_groups,
+            "average_age": round(sum(row[0] for row in age_data) / max(len(age_data), 1), 1) if age_data else 0
+        }
+        
+        # System Status
+        cursor.execute("SELECT COUNT(*) FROM symptom_rules")
+        symptom_rules_count = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM oauth_credentials")
+        oauth_status = cursor.fetchone()[0] > 0
+        
+        dashboard_data["system_status"] = {
+            "symptom_rules_loaded": symptom_rules_count,
+            "google_oauth_configured": oauth_status,
+            "database_size_mb": round(os.path.getsize(config.DATABASE_PATH) / (1024*1024), 2),
+            "last_updated": datetime.now().isoformat()
+        }
+        
+        conn.close()
+        return dashboard_data
+        
+    except Exception as e:
+        return {"error": f"Dashboard generation failed: {str(e)}"}
+
+@app.get("/admin/patients")
+async def get_all_patients():
+    """Get all patients with detailed information"""
+    try:
+        from database.models import DatabaseManager
+        import json
+        
+        db_manager = DatabaseManager(config.DATABASE_PATH)
+        conn = db_manager.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT session_id, name, email, age, gender, symptoms, responses, status, created_at, updated_at
+            FROM patients 
+            ORDER BY created_at DESC
+        """)
+        
+        patients = []
+        for row in cursor.fetchall():
+            patient = {
+                "session_id": row[0],
+                "name": row[1] or "Not provided",
+                "email": row[2] or "Not provided",
+                "age": row[3] or "Not provided", 
+                "gender": row[4] or "Not provided",
+                "symptoms": json.loads(row[5]) if row[5] else [],
+                "responses": json.loads(row[6]) if row[6] else {},
+                "status": row[7],
+                "created_at": row[8],
+                "updated_at": row[9]
+            }
+            patients.append(patient)
+        
+        conn.close()
+        return {"patients": patients, "total_count": len(patients)}
+        
+    except Exception as e:
+        return {"error": f"Failed to fetch patients: {str(e)}"}
+
+@app.get("/admin/patient/{session_id}")
+async def get_patient_details(session_id: str):
+    """Get detailed information for a specific patient"""
+    try:
+        from database.models import DatabaseManager
+        import json
+        
+        db_manager = DatabaseManager(config.DATABASE_PATH)
+        conn = db_manager.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT session_id, name, email, age, gender, symptoms, responses, status, created_at, updated_at
+            FROM patients 
+            WHERE session_id = ?
+        """, (session_id,))
+        
+        row = cursor.fetchone()
+        if not row:
+            return {"error": "Patient not found"}
+        
+        patient = {
+            "session_id": row[0],
+            "name": row[1] or "Not provided",
+            "email": row[2] or "Not provided",
+            "age": row[3] or "Not provided",
+            "gender": row[4] or "Not provided", 
+            "symptoms": json.loads(row[5]) if row[5] else [],
+            "responses": json.loads(row[6]) if row[6] else {},
+            "status": row[7],
+            "created_at": row[8],
+            "updated_at": row[9]
+        }
+        
+        # Get conversation history if available
+        cursor.execute("""
+            SELECT message, sender, timestamp FROM conversation_history 
+            WHERE session_id = ? 
+            ORDER BY timestamp ASC
+        """, (session_id,))
+        
+        conversation = []
+        for msg_row in cursor.fetchall():
+            conversation.append({
+                "message": msg_row[0],
+                "sender": msg_row[1],
+                "timestamp": msg_row[2]
+            })
+        
+        patient["conversation_history"] = conversation
+        
+        conn.close()
+        return patient
+        
+    except Exception as e:
+        return {"error": f"Failed to fetch patient details: {str(e)}"}
+
+@app.get("/admin/analytics")
+async def get_analytics():
+    """Get detailed analytics for doctor insights"""
+    try:
+        from database.models import DatabaseManager
+        import json
+        from datetime import datetime, timedelta
+        
+        db_manager = DatabaseManager(config.DATABASE_PATH)
+        conn = db_manager.get_connection()
+        cursor = conn.cursor()
+        
+        analytics = {
+            "daily_stats": [],
+            "symptom_trends": {},
+            "completion_analysis": {},
+            "response_times": {}
+        }
+        
+        # Daily stats for last 30 days
+        for i in range(30):
+            date = datetime.now() - timedelta(days=i)
+            date_str = date.strftime('%Y-%m-%d')
+            
+            cursor.execute("""
+                SELECT COUNT(*) FROM patients 
+                WHERE date(created_at) = ?
+            """, (date_str,))
+            
+            daily_count = cursor.fetchone()[0]
+            analytics["daily_stats"].append({
+                "date": date_str,
+                "patient_count": daily_count
+            })
+        
+        # Symptom trends
+        cursor.execute("""
+            SELECT symptoms, created_at FROM patients 
+            WHERE symptoms IS NOT NULL AND symptoms != '[]'
+            AND created_at >= datetime('now', '-30 days')
+        """)
+        
+        symptom_by_date = {}
+        for row in cursor.fetchall():
+            try:
+                symptoms = json.loads(row[0])
+                date = row[1][:10]  # Extract date part
+                
+                if date not in symptom_by_date:
+                    symptom_by_date[date] = {}
+                
+                for symptom in symptoms:
+                    symptom_by_date[date][symptom] = symptom_by_date[date].get(symptom, 0) + 1
+            except:
+                continue
+        
+        analytics["symptom_trends"] = symptom_by_date
+        
+        # Completion analysis
+        cursor.execute("""
+            SELECT status, COUNT(*) FROM patients GROUP BY status
+        """)
+        
+        status_counts = dict(cursor.fetchall())
+        analytics["completion_analysis"] = {
+            "status_distribution": status_counts,
+            "completion_rate": round((status_counts.get('completed', 0) / max(sum(status_counts.values()), 1)) * 100, 1)
+        }
+        
+        conn.close()
+        return analytics
+        
+    except Exception as e:
+        return {"error": f"Analytics generation failed: {str(e)}"}
+
 @app.get("/admin/database")
 async def database_inspection():
     """Database inspection endpoint for development"""
@@ -511,6 +830,12 @@ async def serve_frontend():
     """Serve the frontend application"""
     from fastapi.responses import FileResponse
     return FileResponse("backend/static/index.html")
+
+@app.get("/doctor")
+async def doctor_dashboard_page():
+    """Serve the doctor dashboard page"""
+    from fastapi.responses import FileResponse
+    return FileResponse("backend/static/doctor_dashboard.html")
 
 if __name__ == "__main__":
     import uvicorn
