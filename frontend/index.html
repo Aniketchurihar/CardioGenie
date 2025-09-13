@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CardioGenie - AI-Powered Cardiology Assistant</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --shadow-light: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            --shadow-heavy: 0 20px 40px 0 rgba(31, 38, 135, 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--primary-gradient);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+            animation: backgroundShift 20s ease-in-out infinite;
+            z-index: -1;
+        }
+
+        @keyframes backgroundShift {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(2deg); }
+        }
+
+        /* Glass Effect */
+        .glass-effect {
+            backdrop-filter: blur(20px);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow-light);
+        }
+
+        .glass-effect-strong {
+            backdrop-filter: blur(25px);
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: var(--shadow-heavy);
+        }
+
+        /* Chat Container */
+        .chat-container {
+            max-height: 65vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+            padding-right: 8px;
+        }
+
+        .chat-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Message Animations */
+        .message-bubble {
+            animation: messageSlideIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: bottom;
+        }
+
+        @keyframes messageSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Enhanced Message Styles */
+        .user-message {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .ai-message {
+            background: rgba(255, 255, 255, 0.95);
+            color: #1a202c;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .system-message {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            color: #744210;
+            border: 1px solid rgba(252, 182, 159, 0.3);
+        }
+
+        /* Typing Indicator */
+        .typing-indicator {
+            animation: typingPulse 2s infinite;
+        }
+
+        @keyframes typingPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .typing-dots span {
+            animation: typingBounce 1.4s infinite ease-in-out;
+            animation-fill-mode: both;
+        }
+
+        .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typingBounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        /* Input Enhancements */
+        .input-container {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .input-container:focus-within {
+            transform: translateY(-2px);
+        }
+
+        .message-input {
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .message-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1), 0 8px 25px rgba(0, 0, 0, 0.15);
+            background: white;
+        }
+
+        .send-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+        }
+
+        .send-button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        /* Status Indicators */
+        .status-dot {
+            animation: statusPulse 2s infinite;
+        }
+
+        @keyframes statusPulse {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
+        /* Header Enhancements */
+        .header-icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            animation: headerIconFloat 3s ease-in-out infinite;
+        }
+
+        @keyframes headerIconFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+
+        /* Footer Enhancements */
+        .footer-item {
+            transition: all 0.3s ease;
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+
+        .footer-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        /* Calendar Status */
+        .calendar-connected {
+            color: #10b981;
+            animation: connectedGlow 2s infinite;
+        }
+
+        @keyframes connectedGlow {
+            0%, 100% { text-shadow: 0 0 5px rgba(16, 185, 129, 0.5); }
+            50% { text-shadow: 0 0 10px rgba(16, 185, 129, 0.8); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .chat-container {
+                max-height: 60vh;
+            }
+            
+            .message-bubble {
+                max-width: 85%;
+            }
+        }
+
+        /* Loading Animation */
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid white;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Hover Effects */
+        .hover-lift {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .hover-lift:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Message Icons */
+        .message-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .ai-icon {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .system-icon {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        /* Quick Actions */
+        .quick-action {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .quick-action:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <!-- React CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // WebSocket Hook with enhanced error handling
+        function useWebSocket(url) {
+            const [socket, setSocket] = useState(null);
+            const [isConnected, setIsConnected] = useState(false);
+            const [messages, setMessages] = useState([]);
+            const [connectionStatus, setConnectionStatus] = useState('connecting');
+
+            useEffect(() => {
+                const ws = new WebSocket(url);
+                
+                ws.onopen = () => {
+                    setIsConnected(true);
+                    setConnectionStatus('connected');
+                    console.log('✅ Connected to CardioGenie AI Assistant');
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        setMessages(prev => [...prev, message]);
+                    } catch (error) {
+                        console.error('❌ Error parsing message:', error);
+                    }
+                };
+
+                ws.onclose = () => {
+                    setIsConnected(false);
+                    setConnectionStatus('disconnected');
+                    console.log('🔌 Disconnected from CardioGenie AI Assistant');
+                };
+
+                ws.onerror = (error) => {
+                    setConnectionStatus('error');
+                    console.error('⚠️ WebSocket error:', error);
+                };
+
+                setSocket(ws);
+
+                return () => {
+                    ws.close();
+                };
+            }, [url]);
+
+            const sendMessage = (messageText) => {
+                if (socket && isConnected) {
+                    const userMessage = {
+                        type: 'user',
+                        message: messageText,
+                        timestamp: new Date().toISOString()
+                    };
+                    setMessages(prev => [...prev, userMessage]);
+                    socket.send(JSON.stringify({ message: messageText }));
+                }
+            };
+
+            return { socket, isConnected, messages, sendMessage, setMessages, connectionStatus };
+        }
+
+        // Doctor's Calendar Status Component with Auto-Prompt
+        function GoogleCalendarStatus({ onDoctorSetupNeeded }) {
+            const [calendarStatus, setCalendarStatus] = useState({ 
+                authenticated: false, 
+                oauth_ready: false,
+                loading: true 
+            });
+            
+            useEffect(() => {
+                checkCalendarStatus();
+            }, []);
+            
+            const checkCalendarStatus = () => {
+                fetch('http://localhost:8000/auth/google/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        setCalendarStatus({...data, loading: false});
+                        // Auto-prompt for doctor setup if needed
+                        if (data.oauth_ready && !data.authenticated && onDoctorSetupNeeded) {
+                            setTimeout(() => onDoctorSetupNeeded(data), 3000); // Show popup after 3 seconds
+                        }
+                    })
+                    .catch(error => {
+                        console.log('Calendar status check failed:', error);
+                        setCalendarStatus(prev => ({...prev, loading: false}));
+                    });
+            };
+            
+            const handleCalendarAuth = () => {
+                fetch('http://localhost:8000/auth/google')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.auth_url) {
+                            // Open in new tab for doctor authentication
+                            window.open(data.auth_url, '_blank');
+                        }
+                    })
+                    .catch(error => console.log('Calendar auth failed:', error));
+            };
+            
+            // Check for calendar connection callback
+            useEffect(() => {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('calendar') === 'connected') {
+                    // Remove the parameter from URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    // Refresh calendar status
+                    setTimeout(checkCalendarStatus, 1000);
+                }
+            }, []);
+            
+            if (calendarStatus.loading) {
+                return (
+                    <span className="flex items-center space-x-2">
+                        <div className="loading-spinner"></div>
+                        <span>Checking Calendar...</span>
+                    </span>
+                );
+            }
+            
+            return (
+                <span className="flex items-center space-x-2 footer-item">
+                    <i className={`fas fa-calendar-alt ${
+                        calendarStatus.authenticated 
+                            ? 'calendar-connected' 
+                            : 'text-yellow-400'
+                    }`}></i>
+                    {calendarStatus.authenticated ? (
+                        <span className="calendar-connected font-medium">
+                            <i className="fas fa-check-circle mr-1"></i>
+                            Doctor Calendar Ready
+                        </span>
+                    ) : calendarStatus.oauth_ready ? (
+                        <button 
+                            onClick={handleCalendarAuth}
+                            className="text-yellow-400 hover:text-yellow-300 underline font-medium transition-colors"
+                            title="Doctor Setup: Connect Google Calendar for automatic appointment scheduling"
+                        >
+                            <i className="fas fa-user-md mr-1"></i>
+                            Doctor Setup Required
+                        </button>
+                    ) : (
+                        <span className="text-red-400">
+                            <i className="fas fa-exclamation-triangle mr-1"></i>
+                            Calendar Offline
+                        </span>
+                    )}
+                </span>
+            );
+        }
+
+        // Enhanced Connection Status Component
+        function ConnectionStatus({ isConnected, connectionStatus }) {
+            const getStatusColor = () => {
+                switch (connectionStatus) {
+                    case 'connected': return 'bg-green-400';
+                    case 'connecting': return 'bg-yellow-400';
+                    case 'error': return 'bg-red-400';
+                    default: return 'bg-gray-400';
+                }
+            };
+
+            const getStatusText = () => {
+                switch (connectionStatus) {
+                    case 'connected': return 'Connected';
+                    case 'connecting': return 'Connecting...';
+                    case 'error': return 'Connection Error';
+                    default: return 'Disconnected';
+                }
+            };
+
+            return (
+                <div className="flex items-center space-x-2">
+                    <div className={`w-3 h-3 rounded-full ${getStatusColor()} ${
+                        isConnected ? 'status-dot' : ''
+                    }`}></div>
+                    <span className="text-white text-sm font-medium">
+                        {getStatusText()}
+                    </span>
+                </div>
+            );
+        }
+
+        // Enhanced Message Component
+        function MessageBubble({ message, index }) {
+            const formatTimestamp = (timestamp) => {
+                return new Date(timestamp).toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+            };
+
+            const getMessageIcon = (type) => {
+                switch(type) {
+                    case 'system':
+                        return <div className="message-icon system-icon"><i className="fas fa-info"></i></div>;
+                    case 'ai':
+                        return <div className="message-icon ai-icon"><i className="fas fa-user-md"></i></div>;
+                    default:
+                        return null;
+                }
+            };
+
+            const getMessageClass = (type) => {
+                switch(type) {
+                    case 'user':
+                        return 'user-message';
+                    case 'system':
+                        return 'system-message';
+                    default:
+                        return 'ai-message';
+                }
+            };
+
+            return (
+                <div
+                    className={`message-bubble flex ${
+                        message.type === 'user' ? 'justify-end' : 'justify-start'
+                    }`}
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                    <div
+                        className={`max-w-md px-6 py-4 rounded-2xl ${getMessageClass(message.type)} hover-lift`}
+                    >
+                        <div className="flex items-start space-x-3">
+                            {message.type !== 'user' && getMessageIcon(message.type)}
+                            <div className="flex-1">
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap font-medium">
+                                    {message.message}
+                                </p>
+                                <p className={`text-xs mt-2 opacity-70 ${
+                                    message.type === 'user' 
+                                        ? 'text-white' 
+                                        : 'text-gray-600'
+                                }`}>
+                                    {formatTimestamp(message.timestamp)}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+                 // Enhanced Typing Indicator
+         function TypingIndicator() {
+             return (
+                 <div className="flex justify-start">
+                     <div className="ai-message px-6 py-4 rounded-2xl max-w-md">
+                         <div className="flex items-center space-x-3">
+                             <div className="message-icon ai-icon">
+                                 <i className="fas fa-user-md"></i>
+                             </div>
+                             <div className="typing-indicator">
+                                 <span className="text-gray-600 font-medium">CardioGenie is thinking</span>
+                                 <div className="typing-dots inline-flex ml-2">
+                                     <span className="w-2 h-2 bg-blue-500 rounded-full inline-block"></span>
+                                     <span className="w-2 h-2 bg-blue-500 rounded-full inline-block mx-1"></span>
+                                     <span className="w-2 h-2 bg-blue-500 rounded-full inline-block"></span>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+             );
+         }
+
+        // Doctor Setup Modal Component
+        function DoctorSetupModal({ isOpen, onClose, onConnect, calendarData }) {
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+                    <div className="glass-effect-strong rounded-3xl p-8 max-w-lg mx-4 border-2 border-white border-opacity-30">
+                        <div className="text-center">
+                            <div className="w-20 h-20 bg-gradient-to-r from-blue-500 via-purple-600 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+                                <i className="fas fa-user-md text-white text-3xl"></i>
+                            </div>
+                            <h3 className="text-2xl font-bold text-white mb-3">Doctor Setup Required</h3>
+                            <p className="text-white text-opacity-90 mb-6 leading-relaxed">
+                                <strong>One-time setup:</strong> Please authenticate your Google Calendar to enable 
+                                automatic appointment scheduling for all patients. This allows CardioGenie to send 
+                                calendar invites from your email to patients automatically.
+                            </p>
+                            <div className="bg-white bg-opacity-10 rounded-xl p-4 mb-6">
+                                <div className="flex items-center justify-center space-x-2 text-white text-sm">
+                                    <i className="fas fa-info-circle text-blue-400"></i>
+                                    <span>Patients will receive invites from: <strong>aniket.ch71@gmail.com</strong></span>
+                                </div>
+                            </div>
+                            <div className="flex space-x-4">
+                                <button
+                                    onClick={onConnect}
+                                    className="flex-1 bg-gradient-to-r from-blue-500 via-purple-600 to-pink-500 text-white px-8 py-4 rounded-xl font-semibold hover:shadow-2xl transition-all transform hover:scale-105"
+                                >
+                                    <i className="fas fa-calendar-check mr-2"></i>
+                                    Authenticate Google Calendar
+                                </button>
+                                <button
+                                    onClick={onClose}
+                                    className="flex-1 bg-gray-700 bg-opacity-80 text-white px-8 py-4 rounded-xl font-semibold hover:bg-gray-600 transition-all"
+                                >
+                                    <i className="fas fa-clock mr-2"></i>
+                                    Setup Later
+                                </button>
+                            </div>
+                            <p className="text-white text-opacity-60 text-xs mt-4">
+                                This popup will not appear once authentication is complete
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Main Chat Component
+        function CardioGenieChat() {
+            const [inputMessage, setInputMessage] = useState('');
+            const [isTyping, setIsTyping] = useState(false);
+            const [showQuickActions, setShowQuickActions] = useState(true);
+            const [showDoctorSetup, setShowDoctorSetup] = useState(false);
+            const [calendarData, setCalendarData] = useState(null);
+            
+            const messagesEndRef = useRef(null);
+            const inputRef = useRef(null);
+            
+            const sessionId = React.useMemo(() => 
+                'patient_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9), []
+            );
+            
+            const { isConnected, messages, sendMessage, connectionStatus } = useWebSocket(`ws://localhost:8000/ws/chat/${sessionId}`);
+
+            useEffect(() => {
+                scrollToBottom();
+            }, [messages]);
+
+            useEffect(() => {
+                if (messages.length > 0) {
+                    setShowQuickActions(false);
+                }
+            }, [messages]);
+
+            const scrollToBottom = () => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            };
+
+            const handleSendMessage = (e) => {
+                e.preventDefault();
+                if (!inputMessage.trim() || !isConnected) return;
+
+                setIsTyping(true);
+                sendMessage(inputMessage);
+                setInputMessage('');
+
+                setTimeout(() => setIsTyping(false), 3000);
+            };
+
+            const handleQuickAction = (message) => {
+                setInputMessage(message);
+                inputRef.current?.focus();
+            };
+
+            const handleDoctorSetupNeeded = (data) => {
+                setCalendarData(data);
+                setShowDoctorSetup(true);
+            };
+
+            const handleDoctorConnect = () => {
+                fetch('http://localhost:8000/auth/google')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.auth_url) {
+                            window.open(data.auth_url, '_blank');
+                            setShowDoctorSetup(false); // Close modal after opening auth
+                        }
+                    })
+                    .catch(error => console.log('Calendar auth failed:', error));
+            };
+
+            const quickActions = [
+                { icon: 'fas fa-heart', text: 'I have chest pain', message: 'I am experiencing chest pain' },
+                { icon: 'fas fa-lungs', text: 'Breathing issues', message: 'I am having trouble breathing' },
+                { icon: 'fas fa-dizzy', text: 'Feeling dizzy', message: 'I am feeling dizzy and lightheaded' },
+                { icon: 'fas fa-tired', text: 'Fatigue', message: 'I am experiencing unusual fatigue' }
+            ];
+
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4">
+                    <div className="w-full max-w-5xl">
+                        {/* Enhanced Header */}
+                        <div className="glass-effect-strong rounded-t-3xl p-8 border-b border-white border-opacity-20">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-6">
+                                    <div className="w-16 h-16 header-icon rounded-2xl flex items-center justify-center">
+                                        <i className="fas fa-heartbeat text-white text-2xl"></i>
+                                    </div>
+                                    <div>
+                                        <h1 className="text-3xl font-bold text-white mb-1">CardioGenie</h1>
+                                        <p className="text-white text-opacity-90 text-lg">AI-Powered Cardiology Assistant</p>
+                                        <p className="text-white text-opacity-70 text-sm mt-1">Professional • Secure • Intelligent</p>
+                                    </div>
+                                </div>
+                                <ConnectionStatus isConnected={isConnected} connectionStatus={connectionStatus} />
+                            </div>
+                        </div>
+
+                        {/* Enhanced Chat Container */}
+                        <div className="glass-effect-strong p-8">
+                            {/* Quick Actions */}
+                            {showQuickActions && messages.length === 0 && (
+                                <div className="mb-8">
+                                    <h3 className="text-white text-lg font-semibold mb-4">Quick Start Options:</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        {quickActions.map((action, index) => (
+                                            <button
+                                                key={index}
+                                                onClick={() => handleQuickAction(action.message)}
+                                                className="quick-action p-4 rounded-xl text-white text-center hover-lift"
+                                            >
+                                                <i className={`${action.icon} text-2xl mb-2 block`}></i>
+                                                <span className="text-sm font-medium">{action.text}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="chat-container space-y-6 mb-8">
+                                {messages.map((message, index) => (
+                                    <MessageBubble key={index} message={message} index={index} />
+                                ))}
+
+                                {isTyping && <TypingIndicator />}
+                                <div ref={messagesEndRef} />
+                            </div>
+
+                            {/* Enhanced Input Form */}
+                            <form onSubmit={handleSendMessage} className="flex space-x-4">
+                                <div className="flex-1 input-container">
+                                    <input
+                                        ref={inputRef}
+                                        type="text"
+                                        value={inputMessage}
+                                        onChange={(e) => setInputMessage(e.target.value)}
+                                        placeholder="Describe your symptoms or ask a question..."
+                                        className="message-input w-full px-6 py-4 rounded-2xl focus:outline-none text-gray-800 font-medium"
+                                        disabled={!isConnected}
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={!isConnected || !inputMessage.trim()}
+                                    className="send-button px-8 py-4 text-white rounded-2xl focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                                >
+                                    {isConnected ? (
+                                        <i className="fas fa-paper-plane text-lg"></i>
+                                    ) : (
+                                        <div className="loading-spinner"></div>
+                                    )}
+                                </button>
+                            </form>
+                        </div>
+
+                        {/* Enhanced Footer */}
+                        <div className="glass-effect-strong rounded-b-3xl p-6 border-t border-white border-opacity-20">
+                            <div className="flex flex-wrap items-center justify-between text-white text-sm">
+                                <div className="flex flex-wrap items-center space-x-6">
+                                    <span className="footer-item flex items-center space-x-2">
+                                        <i className="fas fa-shield-alt text-green-400"></i>
+                                        <span className="font-medium">End-to-End Encrypted</span>
+                                    </span>
+                                    <span className="footer-item flex items-center space-x-2">
+                                        <i className="fas fa-user-md text-blue-400"></i>
+                                        <span className="font-medium">Medical Grade AI</span>
+                                    </span>
+                                    <GoogleCalendarStatus onDoctorSetupNeeded={handleDoctorSetupNeeded} />
+                                </div>
+                                <div className="text-white text-opacity-70 font-medium mt-2 md:mt-0">
+                                    <i className="fas fa-brain mr-2"></i>
+                                    Powered by Advanced AI • v2.0
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Doctor Setup Modal */}
+                        <DoctorSetupModal
+                            isOpen={showDoctorSetup}
+                            onClose={() => setShowDoctorSetup(false)}
+                            onConnect={handleDoctorConnect}
+                            calendarData={calendarData}
+                        />
+                    </div>
+                </div>
+            );
+        }
+
+        // Render the app
+        ReactDOM.render(<CardioGenieChat />, document.getElementById('root'));
+    </script>
+</body>
+</html> 
