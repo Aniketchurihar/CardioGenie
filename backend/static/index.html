@@ -412,8 +412,18 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.auth_url) {
-                            // Open in new tab for doctor authentication
-                            window.open(data.auth_url, '_blank');
+                            // Open in popup for doctor authentication
+                            const popup = window.open(data.auth_url, 'google_auth', 'width=500,height=600');
+                            
+                            // Listen for authentication completion
+                            const messageListener = (event) => {
+                                if (event.data && event.data.type === 'calendar_connected') {
+                                    // Authentication successful - refresh calendar status
+                                    checkCalendarStatus();
+                                    window.removeEventListener('message', messageListener);
+                                }
+                            };
+                            window.addEventListener('message', messageListener);
                         }
                     })
                     .catch(error => console.log('Calendar auth failed:', error));
@@ -691,8 +701,19 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.auth_url) {
-                            window.open(data.auth_url, '_blank');
+                            // Open in popup for doctor authentication
+                            const popup = window.open(data.auth_url, 'google_auth', 'width=500,height=600');
                             setShowDoctorSetup(false); // Close modal after opening auth
+                            
+                            // Listen for authentication completion
+                            const messageListener = (event) => {
+                                if (event.data && event.data.type === 'calendar_connected') {
+                                    // Authentication successful - refresh calendar status
+                                    checkCalendarStatus();
+                                    window.removeEventListener('message', messageListener);
+                                }
+                            };
+                            window.addEventListener('message', messageListener);
                         }
                     })
                     .catch(error => console.log('Calendar auth failed:', error));

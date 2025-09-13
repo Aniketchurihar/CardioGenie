@@ -10,7 +10,7 @@ from typing import Dict, List, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 # Import modular services
@@ -137,10 +137,32 @@ async def google_callback(request: Request):
         success = notification_service.handle_oauth_callback(code)
         
         if success:
-            return RedirectResponse(
-                url="http://localhost:3001/index.html?calendar=connected",
-                status_code=302
-            )
+            # Return HTML that closes the popup and refreshes the parent window
+            html_content = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Authentication Successful</title>
+            </head>
+            <body>
+                <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+                    <h2>✅ Google Calendar Connected Successfully!</h2>
+                    <p>This window will close automatically...</p>
+                </div>
+                <script>
+                    // Notify parent window and close popup
+                    if (window.opener) {
+                        window.opener.postMessage({type: 'calendar_connected'}, '*');
+                        window.close();
+                    } else {
+                        // Fallback: redirect to main app
+                        window.location.href = '/';
+                    }
+                </script>
+            </body>
+            </html>
+            """
+            return HTMLResponse(content=html_content)
         else:
             return {"error": "Failed to authenticate with Google Calendar"}
             
