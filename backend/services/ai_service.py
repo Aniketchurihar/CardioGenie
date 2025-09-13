@@ -200,15 +200,17 @@ JSON:"""
 CONVERSATION RULES:
 - Be conversational and natural, like a real healthcare assistant
 - Use the patient's name when you know it to personalize responses
-- Explain WHY you need information (for appointments, care recommendations, etc.)
+- Progress the conversation naturally - don't get stuck asking for every detail
+- If patient mentions symptoms, acknowledge them and explore further
 - Keep responses warm but concise (under 30 words)
 - NEVER mention "tasks", "phases", or internal processes
 - Act like a real person, not a robot
 
 MEDICAL RULES:
 - NO medical diagnoses or medical advice
-- Collect information systematically: Basic Info → Symptoms → Follow-up Questions
-- Ask ONE question at a time"""
+- Collect essential info (name, email) and symptoms efficiently
+- If patient shares symptoms, focus on those rather than missing demographics
+- Ask ONE question at a time, but be flexible about progression"""
 
         if phase == "basic_info":
             missing = []
@@ -217,16 +219,20 @@ MEDICAL RULES:
             if not patient_data.get('age'): missing.append("age")
             if not patient_data.get('gender'): missing.append("gender")
             
-            if "name" in missing:
-                context = "You need to get the patient's name first. Be welcoming and friendly."
-            elif "email" in missing:
-                context = f"You know the patient's name is {name}. You need their email for appointment details. Be personal and explain why."
-            elif "age" in missing:
-                context = f"You know {name}'s name and email. You need their age for personalized care. Explain the purpose."
-            elif "gender" in missing:
-                context = f"You know {name}'s basic info except gender. You need this for health profiling. Almost done with basics."
+            name = patient_data.get('name', '')
+            has_essential = patient_data.get('name') and patient_data.get('email')
+            info_count = 4 - len(missing)
+            
+            if len(missing) == 4:
+                context = "First interaction. Be welcoming and ask for name, age, and what brings them here. Don't interrogate - be natural."
+            elif "name" in missing:
+                context = "You need the patient's name to personalize the conversation. Be friendly and welcoming."
+            elif not has_essential:
+                context = f"You know {name}'s name. Get their email for appointments, but be ready to move on if they mention symptoms."
+            elif info_count >= 2:
+                context = f"You have {name}'s essential info. You can ask for one more detail, but prioritize moving to symptoms if they mention any health concerns."
             else:
-                context = f"You have all basic info for {name}. Now transition naturally to asking about their symptoms/concerns."
+                context = f"You have enough info about {name}. Focus on their health concerns and symptoms now."
                 
         elif phase == "symptoms":
             context = f"You have {name}'s basic information. Now ask about their cardiovascular symptoms naturally and conversationally."
@@ -240,7 +246,7 @@ MEDICAL RULES:
         return base_prompt + f"\n\nCONTEXT: {context}"
     
     def _get_fallback_response(self, phase: str, patient_data: Dict[str, Any]) -> str:
-        """Rule-based responses following the document requirements"""
+        """Smart rule-based responses that progress naturally"""
         
         if phase == "basic_info":
             # Check what basic info is missing
@@ -251,31 +257,35 @@ MEDICAL RULES:
             if not patient_data.get('gender'): missing.append("gender")
             
             name = patient_data.get('name', '')
+            info_count = 4 - len(missing)
             
-            if len(missing) == 4:  # First interaction
-                return "Hello! I'm CardioGenie, your AI cardiology assistant. I'm here to help you with your heart health concerns. To get started, could you please share your name and a bit about yourself?"
+            # First interaction - be welcoming and ask for multiple pieces of info
+            if len(missing) == 4:
+                return "Hello! I'm CardioGenie, your AI cardiology assistant. I'm here to help you with your heart health concerns. To get started, could you please tell me your name, age, and what's bringing you here today?"
+            
+            # If we have some info but missing critical pieces, ask smartly
             elif "name" in missing:
                 return "I'd love to help you today! Could you please tell me your name so I can assist you better?"
-            elif "email" in missing:
-                if name:
-                    return f"Nice to meet you, {name}! I'll need to send you some information and appointment details. Could you share your email address with me?"
+            
+            # If we have name but missing email, ask for it (needed for appointments)
+            elif "email" in missing and info_count < 3:
+                return f"Thanks, {name}! I'll need your email to send appointment details. What's your email address?"
+            
+            # If we have name and email, we can be more flexible about age/gender
+            elif info_count >= 2:
+                missing_optional = [item for item in missing if item not in ['name', 'email']]
+                if len(missing_optional) == 1:
+                    if "age" in missing_optional:
+                        return f"Great, {name}! One quick question - what's your age? Then we can discuss your health concerns."
+                    elif "gender" in missing_optional:
+                        return f"Perfect, {name}! Just need to know your gender for our records, then we can talk about what's bothering you."
                 else:
-                    return "I'll need to send you some important information. Could you please share your email address?"
-            elif "age" in missing:
-                if name:
-                    return f"Thanks, {name}! To provide you with the most appropriate care recommendations, could you tell me your age?"
-                else:
-                    return "To provide you with personalized care, could you tell me your age?"
-            elif "gender" in missing:
-                if name:
-                    return f"Almost done with the basics, {name}! Could you let me know your gender? This helps me understand your health profile better."
-                else:
-                    return "Could you let me know your gender? This helps me provide more personalized health guidance."
+                    # Multiple optional items missing - ask for one and move on
+                    return f"Thanks, {name}! What's your age? And more importantly, what cardiovascular symptoms are you experiencing?"
+            
+            # If we have enough info, move to symptoms
             else:
-                if name:
-                    return f"Perfect, {name}! Now I'd like to understand what's bringing you here today. What cardiovascular symptoms or concerns are you experiencing?"
-                else:
-                    return "Great! Now, what cardiovascular symptoms or heart-related concerns are you experiencing today?"
+                return f"Perfect, {name}! Now I'd like to understand what's bringing you here today. What cardiovascular symptoms or concerns are you experiencing?"
         
         elif phase == "symptoms":
             name = patient_data.get('name', '')

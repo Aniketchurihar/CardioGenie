@@ -607,7 +607,7 @@ async def process_patient_message(session_id: str, user_message: str) -> str:
     return response
 
 async def process_basic_info(patient: PatientSession, message: str):
-    """Process basic information collection"""
+    """Process basic information collection with smart progression"""
     current_data = {
         "name": patient.name,
         "email": patient.email,
@@ -620,16 +620,34 @@ async def process_basic_info(patient: PatientSession, message: str):
     
     # Update patient data
     if extracted_info.get("name") and not patient.name:
-            patient.name = extracted_info["name"]
+        patient.name = extracted_info["name"]
     if extracted_info.get("email") and not patient.email:
-            patient.email = extracted_info["email"]
+        patient.email = extracted_info["email"]
     if extracted_info.get("age") and not patient.age:
         patient.age = extracted_info["age"]
     if extracted_info.get("gender") and not patient.gender:
         patient.gender = extracted_info["gender"]
-        
-    # Move to symptoms phase if all info collected
-    if patient.name and patient.email and patient.age and patient.gender:
+    
+    # Smart progression logic - move to symptoms if we have minimum required info
+    has_name = bool(patient.name)
+    has_email = bool(patient.email)
+    has_age = bool(patient.age)
+    has_gender = bool(patient.gender)
+    
+    # Count how much info we have
+    info_count = sum([has_name, has_email, has_age, has_gender])
+    
+    # Progress to symptoms if we have at least 3 pieces of info, or if user mentions symptoms
+    symptom_keywords = ["pain", "chest", "heart", "breath", "dizzy", "tired", "fatigue", "palpitation", "pressure"]
+    mentions_symptoms = any(keyword in message.lower() for keyword in symptom_keywords)
+    
+    # Move to symptoms phase if:
+    # 1. All basic info is collected, OR
+    # 2. We have at least 3 pieces of info and user mentions symptoms, OR  
+    # 3. We have name + email (minimum for appointment) and user mentions symptoms
+    if (info_count >= 4) or \
+       (info_count >= 3 and mentions_symptoms) or \
+       (has_name and has_email and mentions_symptoms):
         patient.phase = "symptoms"
 
     
@@ -743,12 +761,21 @@ def generate_symptom_keywords() -> Dict[str, List[str]]:
         }
 
 def is_consultation_complete(patient: PatientSession) -> bool:
-    """Check if consultation is complete"""
-    basic_info_complete = all([patient.name, patient.email, patient.age, patient.gender])
+    """Check if consultation is complete with flexible requirements"""
+    # Essential info: name and email (for appointment scheduling)
+    essential_info = patient.name and patient.email
+    
+    # Optional but helpful: age and gender (at least one)
+    demographic_info = patient.age or patient.gender
+    
+    # Symptoms and responses
     has_symptoms = len(patient.symptoms) > 0
     has_responses = len(patient.responses) > 0
     
-    return basic_info_complete and has_symptoms and has_responses
+    # Complete if we have essential info + demographics + symptoms + responses
+    # OR if we have essential info + symptoms and at least 2 follow-up responses
+    return (essential_info and demographic_info and has_symptoms and has_responses) or \
+           (essential_info and has_symptoms and len(patient.responses) >= 2)
 
 async def send_notifications(patient: PatientSession):
     """Send notifications to doctor"""
